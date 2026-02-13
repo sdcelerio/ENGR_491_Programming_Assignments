@@ -43,29 +43,52 @@ while Camera.isRunning():
         if Events is not None and Events.size() > 0:
             # Structure fields: ["timestamp", "x", "y", "polarity"]
             Data = Events.numpy() 
-            Eigen_Vals, Eigen_Vec = Get_PCA(Data["x"], Data["y"])
-
-            mu = np.array([np.mean(Data["x"]), np.mean(Data["y"])])
-            cov = np.cov(Data["x"], Data["y"])
-            vals, vecs = np.linalg.eigh(cov)
             Times.extend(Data["timestamp"])
             X_Data.extend(Data["x"])
             Y_Data.extend(Data["y"])
-            Times_Middle.append(np.median(Data["timestamp"]))
-            X_Centers.append(np.mean(Data["x"]))
-            Y_Centers.append(np.mean(Data["y"]))
-            Vector_U.append(Eigen_Vec[0]/np.linalg.norm(Eigen_Vec[0])) 
-            Vector_V.append(Eigen_Vec[1]/np.linalg.norm(Eigen_Vec[1]))
 
 # Convert Lists to Numpy arrays
 Times = np.array(Times)
 Times = Times - Times[0]
 X_Data = np.array(X_Data)
-X_Centers = np.array(X_Centers)
 Y_Data = np.array(Y_Data)
-Y_Centers = np.array(Y_Centers)
-Vector_U = np.array(Vector_U)
-Vector_V = np.array(Vector_V)
+
+# Define window and step sizes
+Window_Size = 100000
+Step_Size = Window_Size//2
+
+# Loop through the data and filter
+Times_Clean = []
+X_Clean = []
+Y_Clean = []
+for i in range(0, len(Times) - Window_Size + 1, Step_Size):
+    # Slice the array to get the current window_size points
+    Window_X = X_Data[i : i + Window_Size]
+    Window_Y = Y_Data[i : i + Window_Size]
+    Window_Times = Times[i : i + Window_Size]
+
+    # Calculate the means of the data and push to center lists
+    Mean_X, Mean_Y = np.mean(Window_X), np.mean(Window_Y)
+    X_Centers.append(Mean_X)
+    Y_Centers.append(Mean_Y)
+    Times_Middle.append(np.mean(Window_Times))
+
+    # Get PCA for the window and get the unit eigen vectors
+    (Lambda_1, Lambda_2), (V1, V2) = Get_PCA(Window_X, Window_Y)
+    U_Unit = V1 / np.linalg.norm(V1)
+    V_Unit = V2 / np.linalg.norm(V2)
+    Vector_U.append(U_Unit * np.sqrt(Lambda_1))
+    Vector_V.append(V_Unit * np.sqrt(Lambda_2))
+
+    # Remove the points that are not beyond 
+    Displacement_X = Window_X- Mean_X
+    Displacement_Y = Window_Y - Mean_Y
+    Num_Sigma_Sq = ((Displacement_X * U_Unit[0] + Displacement_Y * U_Unit[1])**2 / Lambda_1) + \
+               ((Displacement_X * V_Unit[0] + Displacement_Y * V_Unit[1])**2 / Lambda_2)
+    Indexes_Remove = np.sqrt(Num_Sigma_Sq) < 1 # Remove points that are beyond the first standard deviation
+    Times_Clean.extend(Window_Times[Indexes_Remove])
+    X_Clean.extend(Window_X[Indexes_Remove])
+    Y_Clean.extend(Window_Y[Indexes_Remove])
 
 # Create 3-D Scatter plot of the filtered data
 Figure = plt.figure(figsize = (10, 8))
@@ -74,17 +97,20 @@ Axe.set_title(f"PCA Event Stream 3D Visualization")
 Axe.set_xlabel("Time")
 Axe.set_ylabel("X")
 Axe.set_zlabel("Y")
-
-# Scatter Plot
-Times_Middle = Times_Middle - Times_Middle[0]
-Axe.scatter(Times[::1000], X_Data[::1000], Y_Data[::1000], s = 5)
+Axe.scatter(Times_Clean[::2000], X_Clean[::2000], Y_Clean[::2000], s = 5)
 
 # PCA vectors 
+Times_Middle = Times_Middle - Times_Middle[0]
+Vector_U = np.array(Vector_U)
+Vector_V = np.array(Vector_V)
+'''
 Axe.quiver(Times_Middle, X_Centers, Y_Centers, 
           np.zeros_like(Times_Middle), Vector_U[:,0], Vector_U[:,1],
-          length = 50, normalize = False, color = "red")
+          length = 1, normalize = False, color = "red")
 Axe.quiver(Times_Middle, X_Centers, Y_Centers, 
           np.zeros_like(Times_Middle), Vector_V[:,0], Vector_V[:,1],
-          length = 50, normalize = False, color = "blue")
+          length = 1, normalize = False, color = "blue")
+'''
 
+plt.savefig("Filtered_PCA_Data.png")
 plt.show()
