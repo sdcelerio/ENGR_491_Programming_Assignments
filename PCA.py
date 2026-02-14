@@ -54,7 +54,7 @@ X_Data = np.array(X_Data)
 Y_Data = np.array(Y_Data)
 
 # Define window and step sizes
-Window_Size = 100000
+Window_Size = 5000
 Step_Size = Window_Size//2
 
 # Loop through the data and filter
@@ -71,7 +71,7 @@ for i in range(0, len(Times) - Window_Size + 1, Step_Size):
     Mean_X, Mean_Y = np.mean(Window_X), np.mean(Window_Y)
     X_Centers.append(Mean_X)
     Y_Centers.append(Mean_Y)
-    Times_Middle.append(np.mean(Window_Times))
+    Times_Middle.append(np.median(Window_Times))
 
     # Get PCA for the window and get the unit eigen vectors
     (Lambda_1, Lambda_2), (V1, V2) = Get_PCA(Window_X, Window_Y)
@@ -97,7 +97,7 @@ Axe.set_title(f"PCA Event Stream 3D Visualization")
 Axe.set_xlabel("Time")
 Axe.set_ylabel("X")
 Axe.set_zlabel("Y")
-Axe.scatter(Times_Clean[::2000], X_Clean[::2000], Y_Clean[::2000], s = 5)
+Axe.scatter(Times_Middle, X_Centers, Y_Centers, s = 5, alpha = 0.5)
 
 # PCA vectors 
 Times_Middle = Times_Middle - Times_Middle[0]
