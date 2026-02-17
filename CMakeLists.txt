@@ -9,11 +9,5 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(dv-processing REQUIRED)
 find_package(OpenCV REQUIRED)
 
-# Define the executable
-add_executable(pca_viewer src/PCA.cpp)
-
-# Link everything together
-target_link_libraries(pca_viewer 
-    dv::processing 
-    ${OpenCV_LIBS}
-)
+# Add subdirectories for each assignment
+add_subdirectory(PCA_Viewer)
