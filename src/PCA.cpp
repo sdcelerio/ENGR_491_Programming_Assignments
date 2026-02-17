@@ -8,26 +8,11 @@
 #include <dv-processing/core/stream_slicer.hpp>             // Used to collect readings 
 #include <opencv4/opencv2/highgui.hpp>                      // Used to display the data
 
-#define ROLLING_WINDOW_SIZE 5000
-#define SLICER_SIZE ROLLING_WINDOW_SIZE/4
+#define ROLLING_WINDOW_SIZE 20000
+#define SLICER_SIZE 2500
 
-void Calculate_PCA(double Cov_XX, double Cov_XY, double Cov_YY, double Eigenvalues[], double Eignevector_1[], double Eigenvector_2[]) {
-    // Use quadratic formula to obtain eigenvalues
-    double a = 1;
-    double b = -(Cov_XX + Cov_YY);
-    double c = ((Cov_XX * Cov_YY) - (Cov_XY * Cov_XY));
-    double Eigenvalue_1 = (-b + sqrt((b * b) - (4 * a * c)))/(2 * a);
-    double Eigenvalue_2 = (-b - sqrt((b * b) - (4 * a * c)))/(2 * a);
-
-    // Create vectors and return 
-    double Magnitude = sqrt(pow(Eigenvalue_1 - Cov_YY, 2) + pow(Cov_XY, 2));
-    Eignevector_1[0] = (Eigenvalue_1 - Cov_YY)/Magnitude; 
-    Eignevector_1[1] = Cov_XY/Magnitude;
-
-    Magnitude = sqrt(pow(Eigenvalue_2 - Cov_YY, 2) + pow(Cov_XY, 2));
-    Eigenvector_2[0] = (Eigenvalue_2 - Cov_YY)/Magnitude; 
-    Eigenvector_2[1] = Cov_XY/Magnitude;
-}
+void Calculate_PCA(const double Cov_XX, const double Cov_XY, const double Cov_YY, double Eigenvalues[], double Eignevector_1[], double Eigenvector_2[]);
+void Draw_Vector(cv::Mat& Frame, double Center_X, double Center_Y, double Vector[], double Magnitude, cv::Scalar Color);
 
 int main(void) {
     // Initialize the reader for the file
@@ -46,7 +31,7 @@ int main(void) {
     dv::EventStreamSlicer Slicer;
     std::deque<dv::Event> Rolling_Window;
     double Mean_X = 0; double Mean_Y = 0;
-    double Sum_X = 0; double Sum_Y = 0;
+    double Sum_X = 0; double Sum_Y = 0; double Sum_XX = 0; double Sum_XY = 0; double Sum_YY = 0;
     double Cov_XX = 0; double Cov_XY = 0; double Cov_YY = 0;
     Slicer.doEveryNumberOfElements(SLICER_SIZE, [&](const dv::EventStore &Events) {
         for (const dv::Event& New_Event : Events) {
@@ -55,6 +40,11 @@ int main(void) {
             double New_X = New_Event.x();
             double New_Y = New_Event.y();
             std::size_t Current_Size = Rolling_Window.size();
+            Sum_X  += New_X;
+            Sum_Y  += New_Y;
+            Sum_XX += New_X * New_X;
+            Sum_YY += New_Y * New_Y;
+            Sum_XY += New_X * New_Y;
 
             // If the rolling window went over its defined size, remove the oldest event and update means/covariances 
             if (Current_Size > ROLLING_WINDOW_SIZE) {
@@ -63,9 +53,6 @@ int main(void) {
                 Rolling_Window.pop_front();
                 double Old_Mean_X = Mean_X;
                 double Old_Mean_Y = Mean_Y;
-
-                Sum_X += New_X;
-                Sum_Y += New_Y;
 
                 Mean_X += (New_X/ROLLING_WINDOW_SIZE) - (Old_X/ROLLING_WINDOW_SIZE);
                 Mean_Y += (New_Y/ROLLING_WINDOW_SIZE) - (Old_Y/ROLLING_WINDOW_SIZE);
@@ -76,21 +63,15 @@ int main(void) {
             }
             // If the rolling window is growing, update mean/covariances
             else if (Current_Size > 1) {
-                Sum_X += New_X;
-                Sum_Y += New_Y;
+                Mean_X += (New_X - Mean_X) / Current_Size;
+                Mean_Y += (New_Y - Mean_Y) / Current_Size;
 
-                Mean_X += (New_Event.x() - Mean_X) / Current_Size;
-                Mean_Y += (New_Event.y() - Mean_Y) / Current_Size;
-
-                Cov_XX = (Sum_X - Mean_X * Current_Size) * (Sum_X - Mean_X * Current_Size) / (ROLLING_WINDOW_SIZE - 1);
-                Cov_XY = (Sum_X - Mean_X * Current_Size) * (Sum_Y - Mean_Y * Current_Size) / (ROLLING_WINDOW_SIZE - 1);
-                Cov_YY = (Sum_Y - Mean_Y * Current_Size) * (Sum_Y - Mean_Y * Current_Size) / (ROLLING_WINDOW_SIZE - 1);
+                Cov_XX = (Sum_XX - (Sum_X * Sum_X) / Current_Size) / (Current_Size - 1);
+                Cov_YY = (Sum_YY - (Sum_Y * Sum_Y) / Current_Size) / (Current_Size - 1);
+                Cov_XY = (Sum_XY - (Sum_X * Sum_Y) / Current_Size) / (Current_Size - 1);
             }
             // Else its the first entry to the rolling window so initialize means/variances
             else {
-                Sum_X = New_X;
-                Sum_Y = New_Y;
-
                 Mean_X = New_X;
                 Mean_Y = New_Y;
             }
@@ -102,11 +83,11 @@ int main(void) {
         double Vector_2[2];
         Calculate_PCA(Cov_XX, Cov_XY, Cov_YY, Eigenvalues, Vector_1, Vector_2);
         
-        std::cout << Vector_1[0] << " " << Vector_1[1] << std::endl;
-        
         // Produce frame and output
         cv::Mat frame = visualizer.generateImage(Events);
         cv::Point center(static_cast<int>(Mean_X), static_cast<int>(Mean_Y)); // Draw a solid blue circle at the mean
+        Draw_Vector(frame, Mean_X, Mean_Y, Vector_1, sqrt(Eigenvalues[0]), cv::Scalar(255, 255, 255));
+        Draw_Vector(frame, Mean_X, Mean_Y, Vector_2, sqrt(Eigenvalues[1]), cv::Scalar(255, 255, 255));
         cv::circle(frame, center, 5, cv::Scalar(255, 0, 0), -1);
         cv::imshow("Real-Time 500 Events", frame);
         cv::pollKey();
@@ -119,4 +100,33 @@ int main(void) {
     }
 
     return 0;
+}
+
+void Calculate_PCA(double Cov_XX, double Cov_XY, double Cov_YY, double Eigenvalues[], double Eignevector_1[], double Eigenvector_2[]) {
+    // Use quadratic formula to obtain eigenvalues (a = 1)
+    double b = -(Cov_XX + Cov_YY);
+    double c = ((Cov_XX * Cov_YY) - (Cov_XY * Cov_XY));
+    Eigenvalues[0] = (-b + sqrt((b * b) - (4 * c)))/(2.0);
+    Eigenvalues[1] = (-b - sqrt((b * b) - (4 * c)))/(2.0);
+    
+    // Create vectors and return 
+    double Magnitude = sqrt(pow(Eigenvalues[0] - Cov_YY, 2) + pow(Cov_XY, 2));
+    Eignevector_1[0] = (Eigenvalues[0] - Cov_YY)/Magnitude; 
+    Eignevector_1[1] = Cov_XY/Magnitude;
+    
+    Magnitude = sqrt(pow(Eigenvalues[1] - Cov_YY, 2) + pow(Cov_XY, 2));
+    Eigenvector_2[0] = (Eigenvalues[1] - Cov_YY)/Magnitude; 
+    Eigenvector_2[1] = Cov_XY/Magnitude;
+}
+
+void Draw_Vector(cv::Mat& Frame, double Center_X, double Center_Y, double Vector[], double Magnitude, cv::Scalar Color) {
+    cv::Point start(static_cast<int>(Center_X), static_cast<int>(Center_Y));
+    cv::Point end(
+        static_cast<int>(Center_X + Vector[0] * Magnitude),
+        static_cast<int>(Center_Y + Vector[1] * Magnitude)
+    );
+
+    // 2. Draw the arrow
+    // tipLength is the fractional length of the arrow head (0.3 = 30% of line length)
+    cv::arrowedLine(Frame, start, end, Color, 2, cv::LINE_AA, 0, 0.3);
 }
