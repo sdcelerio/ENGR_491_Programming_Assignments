@@ -1,14 +1,17 @@
 #include <iostream>
+#include <cmath>
+#include <chrono>
 #include <deque>
 #include <filesystem>
 #include <dv-processing/core/core.hpp>
 #include <dv-processing/io/camera/discovery.hpp>            // Used for real-time readings
 #include <dv-processing/io/mono_camera_recording.hpp>       // Used for reading .aedat4 recordings
-#include <dv-processing/visualization/event_visualizer.hpp> // Used to generate images to display
 #include <dv-processing/core/stream_slicer.hpp>             // Used to collect readings 
+#include <dv-processing/visualization/event_visualizer.hpp> // Used to generate images to display
 #include <opencv4/opencv2/highgui.hpp>                      // Used to display the data
 
-#define ROLLING_WINDOW_SIZE 20000
+#define ROLLING_WINDOW_SIZE 20000   // How many recent events the PCA calculation will remember
+#define CAMERA_PCA_RATE_MS 10       // How often the program will calculate the PCA and display it
 #define SLICER_SIZE 5000
 
 void Calculate_PCA(const double Cov_XX, const double Cov_XY, const double Cov_YY, double Eigenvalues[], double Eignevector_1[], double Eigenvector_2[]);
@@ -38,9 +41,8 @@ int main(void) {
     double Mean_X = 0; double Mean_Y = 0;
     double Sum_X = 0; double Sum_Y = 0; double Sum_XX = 0; double Sum_XY = 0; double Sum_YY = 0;
     double Cov_XX = 0; double Cov_XY = 0; double Cov_YY = 0;
-
-    std::chrono::microseconds time(100000);
-    Slicer.doEveryTimeInterval(time, [&](const dv::EventStore &Events) {
+    std::chrono::microseconds Rate(CAMERA_PCA_RATE_MS * 1000); 
+    Slicer.doEveryTimeInterval(Rate, [&](const dv::EventStore &Events) {
         for (const dv::Event& New_Event : Events) {
             // Push the new event into the rolling window
             Rolling_Window.push_back(New_Event);
@@ -51,7 +53,7 @@ int main(void) {
             Sum_XX += New_X * New_X;
             Sum_YY += New_Y * New_Y;
             Sum_XY += New_X * New_Y;
-
+            
             // If the rolling window went over its defined size, remove the oldest event from the sum values
             if (Rolling_Window.size() > ROLLING_WINDOW_SIZE) {
                 double Old_X = Rolling_Window.front().x();
@@ -67,7 +69,6 @@ int main(void) {
             
             // Calculate Mean and Covariance on the fly for the current state of the rolling window
             std::size_t Window_Size = Rolling_Window.size();
-            
             Mean_X = Sum_X / Window_Size;
             Mean_Y = Sum_Y / Window_Size;
 
@@ -94,17 +95,18 @@ int main(void) {
         cv::imshow("Real-Time 500 Events", frame);
         cv::pollKey();
     });
-    
+
     // Loop to feed event readings into the slicer 
     while(Camera->isRunning()) {
-       if (std::optional<dv::EventStore> Events = Camera->getNextEventBatch()) 
-            Slicer.accept(*Events);
+       if (std::optional<dv::EventStore> Events = Camera->getNextEventBatch()) {
+           Slicer.accept(*Events);
+        }
     }
 
     return 0;
 }
 
-void Calculate_PCA(double Cov_XX, double Cov_XY, double Cov_YY, double Eigenvalues[], double Eignevector_1[], double Eigenvector_2[]) {
+void Calculate_PCA(double Cov_XX, double Cov_XY, double Cov_YY, double Eigenvalues[], double Eigenvector_1[], double Eigenvector_2[]) {
     // Use quadratic formula to obtain eigenvalues (a = 1)
     double b = -(Cov_XX + Cov_YY);
     double c = ((Cov_XX * Cov_YY) - (Cov_XY * Cov_XY));
@@ -112,30 +114,43 @@ void Calculate_PCA(double Cov_XX, double Cov_XY, double Cov_YY, double Eigenvalu
     Eigenvalues[0] = (-b + std::sqrt(Discriminant))/(2.0);
     Eigenvalues[1] = (-b - std::sqrt(Discriminant))/(2.0);
     
-    // Create vectors and return 
-    double Magnitude = std::sqrt(std::pow(Eigenvalues[0] - Cov_YY, 2) + std::pow(Cov_XY, 2));
-    Eignevector_1[0] = (Eigenvalues[0] - Cov_YY)/Magnitude; 
-    Eignevector_1[1] = Cov_XY/Magnitude;
-    if (Magnitude == 0) {
-        std::cout << "This is the problem" << std::endl;
+    // Create the first eigen vector and consider if the magnitude is 0
+    double X_Component = Eigenvalues[0] - Cov_YY;
+    double Y_Component = Cov_XY;
+    double Magnitude = std::hypot(X_Component, Y_Component);
+    if (Magnitude > 1e-9) { // Use a small epsilon instead of strictly 0
+        Eigenvector_1[0] = X_Component / Magnitude;
+        Eigenvector_1[1] = Y_Component / Magnitude;
+    } else {
+        // If Magnitude is 0, it means Cov_XY = 0 and Eigenvalue = Cov_YY.
+        // This implies the eigenvector is simply the unit Y vector.
+        Eigenvector_1[0] = 0.0;
+        Eigenvector_1[1] = 1.0;
     }
-    
-    Magnitude = std::sqrt(std::pow(Eigenvalues[1] - Cov_YY, 2) + std::pow(Cov_XY, 2));
-    Eigenvector_2[0] = (Eigenvalues[1] - Cov_YY)/Magnitude; 
-    Eigenvector_2[1] = Cov_XY/Magnitude;
-    if (Magnitude == 0) {
-        std::cout << "This is the problem" << std::endl;
+
+    // Create the second eigen vector and consider if the magnitude is 0
+    X_Component = Eigenvalues[1] - Cov_YY;
+    Y_Component = Cov_XY;
+    Magnitude = std::hypot(X_Component, Y_Component);
+    if (Magnitude > 1e-9) { // Use a small epsilon instead of strictly 0
+        Eigenvector_2[0] = X_Component / Magnitude;
+        Eigenvector_2[1] = Y_Component / Magnitude;
+    } else {
+        // If Magnitude is 0, it means Cov_XY = 0 and Eigenvalue = Cov_YY.
+        // This implies the eigenvector is simply the unit Y vector.
+        Eigenvector_2[0] = 0.0;
+        Eigenvector_2[1] = 1.0;
     }
 }
 
 void Draw_Vector(cv::Mat& Frame, double Center_X, double Center_Y, double Vector[], double Magnitude, cv::Scalar Color) {
+    // Create start and end points of the vector
     cv::Point start(static_cast<int>(Center_X), static_cast<int>(Center_Y));
     cv::Point end(
         static_cast<int>(Center_X + Vector[0] * Magnitude),
         static_cast<int>(Center_Y + Vector[1] * Magnitude)
     );
 
-    // 2. Draw the arrow
-    // tipLength is the fractional length of the arrow head (0.3 = 30% of line length)
+    // Draw the vector onto the frame
     cv::arrowedLine(Frame, start, end, Color, 2, cv::LINE_AA, 0, 0.3);
 }
