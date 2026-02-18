@@ -1,5 +1,5 @@
 # Define the executable
-add_executable(PCA_Viewer PCA_Viewer.cpp)
+add_executable(PCA_Viewer PCA_Viewer.cpp PCA_Tracker.cpp)
 
 # Link the libraries found in the root
 target_link_libraries(PCA_Viewer

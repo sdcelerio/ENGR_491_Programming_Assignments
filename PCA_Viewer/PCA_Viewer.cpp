@@ -9,6 +9,7 @@
 #include <dv-processing/core/stream_slicer.hpp>             // Used to collect readings 
 #include <dv-processing/visualization/event_visualizer.hpp> // Used to generate images to display
 #include <opencv4/opencv2/highgui.hpp>                      // Used to display the data
+#include "PCA_Tracker.h"
 
 #define ROLLING_WINDOW_SIZE 20000   // How many recent events the PCA calculation will remember
 #define CAMERA_PCA_RATE_MS 10       // How often the program will calculate the PCA and display it
