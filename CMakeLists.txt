@@ -10,4 +10,5 @@ find_package(dv-processing REQUIRED)
 find_package(OpenCV REQUIRED)
 
 # Add subdirectories for each assignment
+add_subdirectory(common_library)
 add_subdirectory(PCA_Viewer)

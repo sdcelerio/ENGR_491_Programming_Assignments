@@ -1,9 +1,10 @@
 # Define the executable
-add_executable(PCA_Viewer PCA_Viewer.cpp PCA_Tracker.cpp)
+add_executable(run PCA_Viewer.cpp)
 
 # Link the libraries found in the root
-target_link_libraries(PCA_Viewer
+target_link_libraries(run
     PRIVATE
     dv::processing
     ${OpenCV_LIBS}
+    Common_Library
 )
