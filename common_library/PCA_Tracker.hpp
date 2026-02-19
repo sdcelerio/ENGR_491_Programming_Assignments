@@ -6,7 +6,7 @@ class PCA_Tracker {
     /* Private Data Members */
     private:
         // Configuration parameters
-        size_t Max_Window_Size;
+        std::size_t Max_Window_Size;
         
         // The Rolling Sums (Internal math) (Should not have get functions)
         std::deque<dv::Event> Rolling_Window;
