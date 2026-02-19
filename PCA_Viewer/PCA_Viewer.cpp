@@ -17,17 +17,7 @@ void Draw_Vector(cv::Mat& Frame, double Center_X, double Center_Y, double Vector
 int main(void) {
     // Open the first camera that appears
     dv::io::camera::CameraPtr Camera = dv::io::camera::open();
-    
-    /*
-    // Initialize the reader for the file
-    std::filesystem::path filePath = "/mnt/c/Users/sdcel/OneDrive/Documents/School_Work/College_Work/4th_Year/2026_Spring/ENGR_491_512/ENGR_491_Programming_Assignments/data/Ruler.aedat4";
-    dv::io::MonoCameraRecording Camera(filePath);
-    if (!Camera.isEventStreamAvailable()) {
-        std::cerr << "Error! Could not find any events in the filepath " << filePath << std::endl;
-        return 1;
-    }   
-    */
-    
+
     // Intialize the Visualizer
     dv::visualization::EventVisualizer visualizer(Camera->getEventResolution().value(), dv::visualization::colors::black,
         dv::visualization::colors::green, dv::visualization::colors::red);
@@ -58,10 +48,11 @@ int main(void) {
     });
 
     // Loop to feed event readings into the slicer 
+    bool First_Batch = true;
+    std::chrono::microseconds Prev_Timestamp = std::chrono::microseconds::max();
     while(Camera->isRunning()) {
-       if (std::optional<dv::EventStore> Events = Camera->getNextEventBatch()) {
+       if (std::optional<dv::EventStore> Events = Camera->getNextEventBatch())
            Slicer.accept(*Events);
-        }
     }
 
     return 0;

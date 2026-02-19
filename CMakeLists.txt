@@ -15,4 +15,5 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data
 
 # Add subdirectories for the library and each assignment
 add_subdirectory(common_library)
+add_subdirectory(LED_Finder)
 add_subdirectory(PCA_Viewer)
