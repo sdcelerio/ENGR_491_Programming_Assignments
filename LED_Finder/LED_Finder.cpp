@@ -12,7 +12,6 @@
 #define ROLLING_WINDOW_SIZE 20000   // How many recent events the PCA calculation will remember
 #define CAMERA_PCA_RATE_MS 10      // How often the program will calculate the PCA and display i
 
-
 class LedFrequencyDetector {
 private:
     int16_t width;
@@ -33,7 +32,7 @@ public:
      * @param tol Frequency tolerance in Hz
      * @param matches Consecutive cycles required to confirm a detection
      */
-    LedFrequencyDetector(int16_t w, int16_t h, float freq, float tol = 5.0f, int matches = 3)
+    LedFrequencyDetector(int16_t w, int16_t h, double freq, double tol = 5.0f, int matches = 3)
         : width(w), height(h), targetFreq(freq), tolerance(tol), requiredMatches(matches) {
         
         // Initialize state arrays
@@ -44,39 +43,24 @@ public:
     /**
      * Processes an incoming batch of events and updates a binary OpenCV mask.
      */
-    void processEvents(const dv::EventStore& events, cv::Mat& outputMask) {
+    void processEvents(const dv::EventStore& Events, cv::Mat& outputMask) {
         // Reset the mask for the current batch
         outputMask = cv::Mat::zeros(height, width, CV_8UC1);
-
-        for (const auto& event : events) {
+        
+        for (const auto& Event : Events) {
             // We only measure positive polarity (OFF to ON transitions) to capture full cycles
-            if (event.polarity()) {
-                int index = event.y() * width + event.x();
-                int64_t dt = event.timestamp() - lastTimestamps[index];
-                lastTimestamps[index] = event.timestamp();
+            if (!Event.polarity())
+                continue;
 
-                // Ignore impossibly short deltas to filter out hardware noise bursts
-                if (dt > 1000) { 
-                    // Convert delta time (microseconds) to frequency (Hz)
-                    float freq = 1000000.0f / static_cast<float>(dt);
+            int index = Event.y() * width + Event.x();
+            int64_t dt = Event.timestamp() - lastTimestamps[index];
+            lastTimestamps[index] = Event.timestamp();
 
-                    // Check if the measured frequency falls within our target range
-                    if (std::abs(freq - targetFreq) <= tolerance) {
-                        consecutiveMatches[index]++;
-                    } else {
-                        // Reset the match counter if the rhythm breaks
-                        consecutiveMatches[index] = 0;
-                    }
-
-                    // If a pixel has blinked at the right frequency enough times, mark it
-                    if (consecutiveMatches[index] >= requiredMatches) {
-                        outputMask.at<uint8_t>(event.y(), event.x()) = 255;
-                        
-                        // Prevent integer overflow and keep the detection "hot"
-                        consecutiveMatches[index] = requiredMatches; 
-                    }
-                }
-            }
+            // Ignore impossibly short deltas to filter out hardware noise bursts
+            if (dt < 1000) 
+                continue;;
+            
+            
         }
     }
 };
@@ -87,45 +71,55 @@ int main(void) {
     /*
     dv::io::camera::CameraPtr Camera = dv::io::camera::open();
     */
-
-
-    std::filesystem::path filePath = "../data/LED_4_Slow_Clean.aedat4";
+    
+    std::filesystem::path filePath = "../data/LED_4_Best.aedat4";
     dv::io::MonoCameraRecording Reader(filePath);
     dv::io::MonoCameraRecording* Camera = &Reader;
     if (!Camera->isEventStreamAvailable()) {
         //std::cerr << "Error! Could not find any events in the filepath " << filePath << std::endl;
         return 1;
     }   
-
+    
     auto resolution = Camera->getEventResolution();
     if (!resolution.has_value()) {
         std::cerr << "Camera does not provide event resolution!" << std::endl;
         return 1;
     }
 
+    // Initialize detector
     int16_t width = resolution->width;
     int16_t height = resolution->height;
-
-    // Initialize detector for a 100 Hz LED (+/- 5 Hz) requiring 4 consecutive matches
-    LedFrequencyDetector detector(width, height, 100.0f, 5.0f, 4);
+    LedFrequencyDetector detector(width, height, 100.0, 20.0, 20);
+    
     cv::Mat detectionMask;
+    dv::visualization::EventVisualizer visualizer(Camera->getEventResolution().value(), dv::visualization::colors::black,
+        dv::visualization::colors::green, dv::visualization::colors::red);
+    cv::namedWindow("Events", cv::WINDOW_NORMAL);
     cv::namedWindow("Detected LEDs", cv::WINDOW_NORMAL);
 
-    std::cout << "Starting live capture. Press 'q' or 'ESC' to exit." << std::endl;
-    while (Camera->isRunning()) {
-        // Read a batch of events (e.g., sliced roughly every 30ms by default)
-        auto Events = Camera->getNextEventBatch();
 
-        if (Events.has_value() && !Events->isEmpty()) {
+    // Intialize the Event Slicer
+    dv::EventStreamSlicer Slicer;
+    std::chrono::microseconds Rate(100 * 1000); 
+    Slicer.doEveryTimeInterval(Rate, [&](const dv::EventStore &Events) {
+        // Read a batch of events (e.g., sliced roughly every 30ms by default)
+        if (!Events.isEmpty()) {
             // Process the events and generate a mask
-            detector.processEvents(Events.value(), detectionMask);
+            detector.processEvents(Events, detectionMask);
+            cv::imshow("Events", visualizer.generateImage(Events));
             cv::imshow("Detected LEDs", detectionMask);
         }
 
-        int key = cv::waitKey(1);
-        if (key == 'q' || key == 27) { // 27 is ESC
-            break;
-        }
+        cv::pollKey();
+    });
+
+
+
+    std::cout << "Starting live capture. Press 'q' or 'ESC' to exit." << std::endl;
+    while (Camera->isRunning()) {
+        if (std::optional<dv::EventStore> Events = Camera->getNextEventBatch())
+           Slicer.accept(*Events);
+        
         std::this_thread::sleep_for(std::chrono::microseconds(10000));
     }
 
