@@ -1,14 +1,11 @@
-#include <cmath>
-#include <deque>
+#include <deque> 
+#include <cmath>        
+#include <cstddef>      
+#include <opencv2/opencv.hpp>  
 #include <dv-processing/core/core.hpp>
-#include <dv-processing/io/camera/discovery.hpp>            // Used for real-time readings
-#include <dv-processing/io/mono_camera_recording.hpp>       // Used for reading .aedat4 recordings
-#include <dv-processing/core/stream_slicer.hpp>             // Used to collect readings 
-#include <dv-processing/visualization/event_visualizer.hpp> // Used to generate images to display
 #include "PCA_Tracker.hpp"
 
-
-PCA_Tracker::PCA_Tracker(size_t Max_Window_Size) : Max_Window_Size(Max_Window_Size) {}
+PCA_Tracker::PCA_Tracker(std::size_t Max_Window_Size) : Max_Window_Size(Max_Window_Size) {}
 
 void PCA_Tracker::Accept_Event_Batch(const dv::EventStore& Events) {
     for (const dv::Event& New_Event : Events) {

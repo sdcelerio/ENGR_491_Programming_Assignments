@@ -1,6 +1,9 @@
+#pragma once
+
 #include <deque>
-#include <dv-processing/core/core.hpp>
-#include <opencv4/opencv2/highgui.hpp>
+#include <cstddef>      
+#include <dv-processing/core/core.hpp> 
+#include <opencv2/opencv.hpp>
 
 class PCA_Tracker {
     /* Private Data Members */

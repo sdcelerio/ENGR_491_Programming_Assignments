@@ -1,6 +1,9 @@
-#include <stdint.h>
+#pragma once
+
 #include <vector>
+#include <cstdint>
 #include <dv-processing/core/core.hpp>
+#include <opencv2/opencv.hpp>
 
 class Frequency_Detector {
     /* Private defined structs */
@@ -18,29 +21,20 @@ class Frequency_Detector {
         double Tolerance;
         int Required_Matches;
 
-        // 1D arrays flattened from 2D (width * height) for performance
+        // 1D arrays flattened from 2D (width * height) for cache performance
         std::vector<PixelState> Pixel_States;
-        std::vector<int64_t> Last_Timestamps;
-        std::vector<int> Consecutive_Matches;
     
     /* Public functions */
     public:
-        /**
-         * @param w Camera width
-         * @param h Camera height
-         * @param freq Target frequency in Hz
-         * @param tol Frequency tolerance in Hz
-         * @param matches Consecutive cycles required to confirm a detection
-         */
         Frequency_Detector(int16_t Width, int16_t Height, double Target_Frequency, double Tolerance, int Required_Matches);
 
         /**
          * Processes an incoming batch of events and updates a binary OpenCV mask.
          */
-        void Accept_Event_Batch(const dv::EventStore& Events, cv::Mat& outputMask);
+        void Accept_Event_Batch(const dv::EventStore& Events);
 
         /**
-         * Draws the detected pixels on to the given frame
+         * Draws the detected pixels on to the given frame with the given color
          */
         void Highlight_Pixels(cv::Mat& Frame, cv::Vec3b Color);
 };
