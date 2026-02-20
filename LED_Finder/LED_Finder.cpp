@@ -16,8 +16,8 @@ class LedFrequencyDetector {
 private:
     int16_t width;
     int16_t height;
-    float targetFreq;
-    float tolerance;
+    double targetFreq;
+    double tolerance;
     int requiredMatches;
 
     // 1D arrays flattened from 2D (width * height) for performance
@@ -58,9 +58,25 @@ public:
 
             // Ignore impossibly short deltas to filter out hardware noise bursts
             if (dt < 1000) 
-                continue;;
+                continue;
+
+            // After the dt < 1000 guard:
+            float measuredFreq = 1e6f / static_cast<float>(dt); // dt is in microseconds
+
+            if (std::abs(measuredFreq - targetFreq) <= tolerance) {
+                consecutiveMatches[index]++;
+            } else {
+                consecutiveMatches[index] = 0; // reset streak on mismatch
+            }
             
             
+        }
+
+        for (int i = 0; i < width * height; i++) {
+            if (consecutiveMatches[i] >= requiredMatches) {
+                int x = i % width, y = i / width;
+                outputMask.at<uint8_t>(y, x) = 255;
+            }
         }
     }
 };
@@ -72,7 +88,7 @@ int main(void) {
     dv::io::camera::CameraPtr Camera = dv::io::camera::open();
     */
     
-    std::filesystem::path filePath = "../data/LED_4_Best.aedat4";
+    std::filesystem::path filePath = "../data/LEDs_Slow.aedat4";
     dv::io::MonoCameraRecording Reader(filePath);
     dv::io::MonoCameraRecording* Camera = &Reader;
     if (!Camera->isEventStreamAvailable()) {
@@ -89,7 +105,7 @@ int main(void) {
     // Initialize detector
     int16_t width = resolution->width;
     int16_t height = resolution->height;
-    LedFrequencyDetector detector(width, height, 100.0, 20.0, 20);
+    LedFrequencyDetector detector(width, height, 4.0, 0.5, 3);
     
     cv::Mat detectionMask;
     dv::visualization::EventVisualizer visualizer(Camera->getEventResolution().value(), dv::visualization::colors::black,
