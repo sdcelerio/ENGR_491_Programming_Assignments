@@ -1,5 +1,4 @@
 #include <cmath>
-#include <chrono>
 #include <deque>
 #include <dv-processing/core/core.hpp>
 #include <dv-processing/io/camera/discovery.hpp>            // Used for real-time readings

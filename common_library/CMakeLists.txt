@@ -1,5 +1,8 @@
 # Define the library
-add_library(Common_Library PCA_Tracker.cpp)
+add_library(Common_Library 
+    PCA_Tracker.cpp
+    Frequency_Detector.cpp
+)
 
 # The library needs OpenCV/DV too
 find_package(OpenCV REQUIRED)
