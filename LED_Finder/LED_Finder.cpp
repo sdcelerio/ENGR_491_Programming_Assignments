@@ -13,10 +13,9 @@
 
 int main(void) {
     // Initialize the reader for the file
-    /*
     dv::io::camera::CameraPtr Camera = dv::io::camera::open();
-    */
     
+    /*
     std::filesystem::path filePath = "../data/LEDs_Fast.aedat4";
     dv::io::MonoCameraRecording Reader(filePath);
     dv::io::MonoCameraRecording* Camera = &Reader;
@@ -24,6 +23,8 @@ int main(void) {
         std::cerr << "Error! Could not find any events in the filepath " << filePath << std::endl;
         return 1;
     }   
+    */
+   
     // Get the camera resolution
     auto resolution = Camera->getEventResolution();
     if (!resolution.has_value()) {
@@ -67,7 +68,7 @@ int main(void) {
                 cv::imshow("Detected LEDs", detectionMask);
             }
 
-            std::this_thread::sleep_for(std::chrono::microseconds(Events->duration()));
+            //std::this_thread::sleep_for(std::chrono::microseconds(Events->duration()));
         }
         cv::waitKey(1);
     }

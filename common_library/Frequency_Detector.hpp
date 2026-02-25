@@ -11,7 +11,7 @@ class Frequency_Detector {
         struct PixelState {
             std::int64_t Latest_Timestamp = 0;
             int Num_Matches = 0;
-            bool Is_Valid = false;
+            std::int32_t Valid_Index = -1; // -1 indicates a non-valid node
         };
     
     /* Private data members */
@@ -23,7 +23,7 @@ class Frequency_Detector {
 
         // 1D arrays flattened from 2D (width * height) for cache performance
         std::vector<PixelState> Pixel_States;
-        std::vector<std::uint32_t> Valid_Indexes;
+        std::vector<std::int32_t> Valid_Indexes;
     
     /* Public functions */
     public:
@@ -47,5 +47,5 @@ class Frequency_Detector {
         /**
          * Given the latest timestamp of the event batch, the old validated pixels are removed from the Pixel State Vector
          */
-        void Remove_Old_Pixels(std::int64_t Latest_Timestamp);
+        void Remove_Old_Pixels(std::int64_t Latest_Events_Timestamp);
 };
