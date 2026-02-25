@@ -9,24 +9,28 @@ class Frequency_Detector {
     /* Private defined structs */
     private:
         struct PixelState {
-            int64_t Latest_Timestamp = 0;
+            std::int64_t Latest_Timestamp = 0;
             int Num_Matches = 0;
+            bool Is_Valid = false;
         };
     
     /* Private data members */
     private:
-        int16_t Width;
-        int16_t Height;
+        cv::Size Size;
         double Target_Frequency;
         double Tolerance;
         int Required_Matches;
 
         // 1D arrays flattened from 2D (width * height) for cache performance
         std::vector<PixelState> Pixel_States;
+        std::vector<std::uint32_t> Valid_Indexes;
     
     /* Public functions */
     public:
-        Frequency_Detector(int16_t Width, int16_t Height, double Target_Frequency, double Tolerance, int Required_Matches);
+        /**
+         * Draws the detected pixels on to the given frame with the given color
+         */
+        Frequency_Detector(cv::Size Size, double Target_Frequency, double Tolerance, int Required_Matches);
 
         /**
          * Processes an incoming batch of events and updates a binary OpenCV mask.
@@ -36,5 +40,12 @@ class Frequency_Detector {
         /**
          * Draws the detected pixels on to the given frame with the given color
          */
-        void Highlight_Pixels(cv::Mat& Frame, cv::Vec3b Color);
+        void Highlight_Pixels(cv::Mat& Frame, cv::Vec3b Color) const;
+
+    /* Private helper functions */
+    private:
+        /**
+         * Given the latest timestamp of the event batch, the old validated pixels are removed from the Pixel State Vector
+         */
+        void Remove_Old_Pixels(std::int64_t Latest_Timestamp);
 };
