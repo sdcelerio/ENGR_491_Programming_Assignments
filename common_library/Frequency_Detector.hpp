@@ -28,7 +28,7 @@ class Frequency_Detector {
     /* Public functions */
     public:
         /**
-         * Draws the detected pixels on to the given frame with the given color
+         * Constructs a Frequency_Detector Object given the camera resolution and parameters for valid oscillating pixels
          */
         Frequency_Detector(cv::Size Size, double Target_Frequency, double Tolerance, int Required_Matches);
 
