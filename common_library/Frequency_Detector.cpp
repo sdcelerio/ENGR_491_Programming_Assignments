@@ -63,9 +63,11 @@ void Frequency_Detector::Accept_Event_Batch(const dv::EventStore& Events) {
 }
 
 void Frequency_Detector::Highlight_Pixels(cv::Mat& Frame, cv::Vec3b Color) const {
-    for (std::uint32_t Index : this->Valid_Indexes) {
-        int x = Index % this->Size.width, y = Index / this->Size.width;
-        Frame.at<cv::Vec3b>(y, x) = Color;
+    // Draw all the valid pixels onto the frame given the color
+    for (std::int32_t Index : this->Valid_Indexes) {
+        std::int32_t X = Index % this->Size.width;
+        std::int32_t Y = Index / this->Size.width;
+        Frame.at<cv::Vec3b>(Y, X) = Color;
     }
 }
 
