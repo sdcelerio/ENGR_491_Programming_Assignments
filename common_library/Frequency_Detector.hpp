@@ -54,5 +54,5 @@ class Frequency_Detector {
          * Removes a pixel from Valid_Indexes at the given position using pop-and-swap for O(1) deletion.
          * Updates the swapped pixel's Valid_Index to reflect its new position.
          */
-        void Pop_Swap(std::int32_t Target_Index);
+        void Swap_Pop(std::int32_t Target_Index);
 };

@@ -55,7 +55,7 @@ void Frequency_Detector::Accept_Event_Batch(const dv::EventStore& Events) {
         else {
             this->Pixel_States[Index].Num_Matches = 0;
             if (this->Pixel_States[Index].Index_In_Valid != -1) {   // If the pixel was considered valid, perform a pop and swap for O(1) vector deletion
-                this->Pop_Swap(this->Pixel_States[Index].Index_In_Valid);
+                this->Swap_Pop(this->Pixel_States[Index].Index_In_Valid);
                 this->Pixel_States[Index].Index_In_Valid = -1;
             }
         }
@@ -78,14 +78,14 @@ void Frequency_Detector::Remove_Old_Pixels(std::int64_t Latest_Events_Timestamp)
         std::uint32_t Pixel_Index = Valid_Indexes[Valid_Index];
         if (Latest_Events_Timestamp - this->Pixel_States[Pixel_Index].Latest_Timestamp > this->Expiry_Threshold) {
             this->Pixel_States[Pixel_Index] = PixelState();
-            this->Pop_Swap(Valid_Index);
+            this->Swap_Pop(Valid_Index);
         } 
         else 
             Valid_Index++;
     }
 }
 
-void Frequency_Detector::Pop_Swap(std::int32_t Target_Index) {
+void Frequency_Detector::Swap_Pop(std::int32_t Target_Index) {
     // If the target index to remove from valid vector is not the back, proceed to swap. This prevents segmentation faults
     if (Target_Index != (std::int32_t) this->Valid_Indexes.size() - 1) {
         this->Pixel_States[this->Valid_Indexes.back()].Index_In_Valid = Target_Index;
