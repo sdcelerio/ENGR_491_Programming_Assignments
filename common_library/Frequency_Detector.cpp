@@ -9,7 +9,7 @@ Frequency_Detector::Frequency_Detector(cv::Size Size, double Target_Frequency, d
     : Size(Size), Target_Frequency(Target_Frequency), Tolerance(Tolerance), Required_Matches(Required_Matches) {
 
     // Initialize state arrays
-    this->Expiry_Threshold = static_cast<int64_t>(2e6 / (this->Target_Frequency)); // Effective time period twice of the target frequency period
+    this->Expiry_Threshold = static_cast<int64_t>(3e6 / (this->Target_Frequency)); // Effective time period twice of the target frequency period
     this->Pixel_States.resize(Size.area());
     this->Valid_Indexes.reserve((Size.area()) / 10); // Reserves space so reallocation is minimum at the start
 }
@@ -62,11 +62,22 @@ void Frequency_Detector::Accept_Event_Batch(const dv::EventStore& Events) {
     }
 }
 
+dv::EventStore Frequency_Detector::Generate_Events() {
+    dv::EventStore Return_Store;
+    for (std::int32_t Valid_Index : this->Valid_Indexes) {
+        std::int16_t X = Valid_Index % this->Size.width;
+        std::int16_t Y = Valid_Index / this->Size.width;
+
+        Return_Store.emplace_back(0, X, Y, true);
+    }
+    return Return_Store;
+}
+
 void Frequency_Detector::Highlight_Pixels(cv::Mat& Frame, cv::Vec3b Color) const {
     // Draw all the valid pixels onto the frame given the color
-    for (std::int32_t Index : this->Valid_Indexes) {
-        std::int32_t X = Index % this->Size.width;
-        std::int32_t Y = Index / this->Size.width;
+    for (std::int32_t Valid_Index : this->Valid_Indexes) {
+        std::int16_t X = Valid_Index % this->Size.width;
+        std::int16_t Y = Valid_Index / this->Size.width;
         Frame.at<cv::Vec3b>(Y, X) = Color;
     }
 }

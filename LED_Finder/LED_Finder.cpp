@@ -6,6 +6,7 @@
 #include <dv-processing/io/mono_camera_recording.hpp>       // Used for reading .aedat4 recordings
 #include <dv-processing/core/stream_slicer.hpp>             // Used to collect readings 
 #include <dv-processing/visualization/event_visualizer.hpp> // Used to generate images to display
+#include <dv-processing/cluster/mean_shift.hpp>
 #include <opencv4/opencv2/highgui.hpp>                      // Used to display the data
 #include "Frequency_Detector.hpp"
 
@@ -44,6 +45,7 @@ int main(void) {
     cv::namedWindow("Events", cv::WINDOW_NORMAL);
     cv::namedWindow("Detected LEDs", cv::WINDOW_NORMAL);
     cv::Mat detectionMask(*resolution, CV_8UC3, cv::Scalar(0, 0, 0));
+
     
     std::cout << "Starting live capture." << std::endl;
     while (Camera->isRunning()) {
@@ -52,17 +54,46 @@ int main(void) {
             if (!Events->isEmpty()) {
                 // Process the events and generate a mask
                 detectionMask.setTo(cv::Scalar(0, 0, 0));
-                Detector_100.Accept_Event_Batch(*Events);
-                Detector_100.Highlight_Pixels(detectionMask, cv::Vec3b(255, 255, 255));
+                //Detector_100.Accept_Event_Batch(*Events);
+                //Detector_100.Highlight_Pixels(detectionMask, cv::Vec3b(255, 255, 255));
                 
-                Detector_200.Accept_Event_Batch(*Events);
-                Detector_200.Highlight_Pixels(detectionMask, cv::Vec3b(0, 0, 255));
+                //Detector_200.Accept_Event_Batch(*Events);
+                //Detector_200.Highlight_Pixels(detectionMask, cv::Vec3b(0, 0, 255));
 
-                Detector_300.Accept_Event_Batch(*Events);
-                Detector_300.Highlight_Pixels(detectionMask, cv::Vec3b(0, 255, 0));
+                //Detector_300.Accept_Event_Batch(*Events);
+                //Detector_300.Highlight_Pixels(detectionMask, cv::Vec3b(0, 255, 0));
 
                 Detector_400.Accept_Event_Batch(*Events);
                 Detector_400.Highlight_Pixels(detectionMask, cv::Vec3b(255, 0, 0));
+                
+                dv::EventStore Store_400 = Detector_400.Generate_Events();
+
+                dv::cluster::mean_shift::MeanShiftEventStoreAdaptor meanShift(
+                    Store_400, 40.0f, 0.01f, 500, 30);
+                auto [centers, labels, counts, variances] = meanShift.fit();
+
+                auto color = cv::Vec3b(255, 255, 255);
+                for (int i = 0; i < centers.size(); i++) {
+                    if (counts.at(i) <= 100)
+                        continue;
+
+                    const int halfSize = 15;
+                    cv::Point2f pt(centers[i].pt.x(), centers[i].pt.y());
+                    cv::Point2f topLeft  = pt - cv::Point2f(halfSize, halfSize);
+                    cv::Point2f botRight = pt + cv::Point2f(halfSize, halfSize);
+                    cv::rectangle(detectionMask,
+                        pt - cv::Point2f(halfSize, halfSize),
+                        pt + cv::Point2f(halfSize, halfSize),
+                        cv::Scalar(color[0], color[1], color[2]), 1);
+                    cv::putText(detectionMask,
+                        "400 Hz",                                  
+                        topLeft - cv::Point2f(0, 5),                
+                        cv::FONT_HERSHEY_SIMPLEX,
+                        0.4,                                  
+                        cv::Scalar(color[0], color[1], color[2]),
+                        1);                    
+                }
+                Detector_400.Highlight_Pixels(detectionMask, cv::Vec3b(255, 0, 255));
                 
                 cv::imshow("Events", visualizer.generateImage(*Events));
                 cv::imshow("Detected LEDs", detectionMask);

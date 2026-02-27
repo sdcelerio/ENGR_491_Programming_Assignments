@@ -38,6 +38,8 @@ class Frequency_Detector {
          */
         void Accept_Event_Batch(const dv::EventStore& Events);
 
+        dv::EventStore Generate_Events();
+
         /**
          * Draws the detected pixels on to the given frame with the given color
          */
