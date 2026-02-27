@@ -1,5 +1,5 @@
 # Define the executable
-add_executable(LED_Finder LED_Finder.cpp)
+add_executable(LED_Finder LED_Finder.cpp LED_Frequency_Tracker.cpp)
 
 # Link the libraries found in the root
 target_link_libraries(LED_Finder

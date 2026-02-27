@@ -5,13 +5,13 @@
 #include <opencv2/opencv.hpp>
 #include "Frequency_Detector.hpp"
 
-Frequency_Detector::Frequency_Detector(cv::Size Size, double Target_Frequency, double Tolerance, int Required_Matches)
-    : Size(Size), Target_Frequency(Target_Frequency), Tolerance(Tolerance), Required_Matches(Required_Matches) {
+Frequency_Detector::Frequency_Detector(const cv::Size Resolution, double Target_Frequency, double Tolerance, int Required_Matches)
+    : Resolution(Resolution), Target_Frequency(Target_Frequency), Tolerance(Tolerance), Required_Matches(Required_Matches) {
 
     // Initialize state arrays
     this->Expiry_Threshold = static_cast<int64_t>(3e6 / (this->Target_Frequency)); // Effective time period twice of the target frequency period
-    this->Pixel_States.resize(Size.area());
-    this->Valid_Indexes.reserve((Size.area()) / 10); // Reserves space so reallocation is minimum at the start
+    this->Pixel_States.resize(Resolution.area());
+    this->Valid_Indexes.reserve((Resolution.area()) / 10); // Reserves space so reallocation is minimum at the start
 }
 
 void Frequency_Detector::Accept_Event_Batch(const dv::EventStore& Events) {
@@ -30,7 +30,7 @@ void Frequency_Detector::Accept_Event_Batch(const dv::EventStore& Events) {
             continue;
         
         // Based on the time period between the previous timestamp and new timestamp, calculate the measured frequency
-        int Index = Event.y() * this->Size.width + Event.x();
+        int Index = Event.y() * this->Resolution.width + Event.x();
         std::int64_t Time_Displacement_us = Event.timestamp() - this->Pixel_States[Index].Latest_Timestamp; // Time period in microseconds
         this->Pixel_States[Index].Latest_Timestamp = Event.timestamp();
         if (Time_Displacement_us < 1000) // Ignore impossibly short displacements to filter out hardware noise bursts
@@ -65,8 +65,8 @@ void Frequency_Detector::Accept_Event_Batch(const dv::EventStore& Events) {
 dv::EventStore Frequency_Detector::Generate_Events() {
     dv::EventStore Return_Store;
     for (std::int32_t Valid_Index : this->Valid_Indexes) {
-        std::int16_t X = Valid_Index % this->Size.width;
-        std::int16_t Y = Valid_Index / this->Size.width;
+        std::int16_t X = Valid_Index % this->Resolution.width;
+        std::int16_t Y = Valid_Index / this->Resolution.width;
 
         Return_Store.emplace_back(0, X, Y, true);
     }
@@ -76,8 +76,8 @@ dv::EventStore Frequency_Detector::Generate_Events() {
 void Frequency_Detector::Highlight_Pixels(cv::Mat& Frame, cv::Vec3b Color) const {
     // Draw all the valid pixels onto the frame given the color
     for (std::int32_t Valid_Index : this->Valid_Indexes) {
-        std::int16_t X = Valid_Index % this->Size.width;
-        std::int16_t Y = Valid_Index / this->Size.width;
+        std::int16_t X = Valid_Index % this->Resolution.width;
+        std::int16_t Y = Valid_Index / this->Resolution.width;
         Frame.at<cv::Vec3b>(Y, X) = Color;
     }
 }
