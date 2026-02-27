@@ -4,11 +4,8 @@
 #include <dv-processing/core/core.hpp>
 #include <dv-processing/io/camera/discovery.hpp>            // Used for real-time readings
 #include <dv-processing/io/mono_camera_recording.hpp>       // Used for reading .aedat4 recordings
-#include <dv-processing/core/stream_slicer.hpp>             // Used to collect readings 
 #include <dv-processing/visualization/event_visualizer.hpp> // Used to generate images to display
-#include <dv-processing/cluster/mean_shift.hpp>
-#include <opencv4/opencv2/highgui.hpp>                      // Used to display the data
-#include "Frequency_Detector.hpp"
+#include <opencv2/opencv.hpp>                               // Used to display the data
 #include "LED_Frequency_Tracker.hpp"
 
 #define CAMERA_RATE_MS 10      // How often the program will calculate and display it
@@ -16,11 +13,17 @@
 int main(void) {
     // Initialize the live camera
     dv::io::camera::CameraPtr Camera = dv::io::camera::open();
-   
+    
     // Get the camera resolution
     auto resolution = Camera->getEventResolution();
     if (!resolution.has_value()) {
         std::cerr << "Camera does not provide event resolution!" << std::endl;
+        return 1;
+    }
+
+    // Check if event stream is avaiable
+    if (!Camera->isEventStreamAvailable()) {
+        std::cerr << "Camera does not provide event stream!" << std::endl;
         return 1;
     }
 
