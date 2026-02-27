@@ -16,7 +16,7 @@ class Frequency_Detector {
     
     /* Private data members */
     private:
-        cv::Size Size;
+        cv::Size Resolution;
         double Target_Frequency;
         double Tolerance;
         int Required_Matches;
@@ -31,7 +31,7 @@ class Frequency_Detector {
         /**
          * Constructs a Frequency_Detector Object given the camera resolution and parameters for valid oscillating pixels
          */
-        Frequency_Detector(cv::Size Size, double Target_Frequency, double Tolerance, int Required_Matches);
+        Frequency_Detector(const cv::Size Resolution, double Target_Frequency, double Tolerance, int Required_Matches);
 
         /**
          * Processes an incoming batch of events and updates a binary OpenCV mask.
