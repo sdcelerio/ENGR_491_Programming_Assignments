@@ -2,7 +2,7 @@
 #include <cmath>
 #include <cstdint>
 #include <dv-processing/core/core.hpp>
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 #include "Frequency_Detector.hpp"
 
 Frequency_Detector::Frequency_Detector(const cv::Size Resolution, double Target_Frequency, double Tolerance, int Required_Matches)
@@ -11,7 +11,7 @@ Frequency_Detector::Frequency_Detector(const cv::Size Resolution, double Target_
     // Initialize state arrays
     this->Expiry_Threshold = static_cast<int64_t>(3e6 / (this->Target_Frequency)); // Effective time period twice of the target frequency period
     this->Pixel_States.resize(Resolution.area());
-    this->Valid_Indexes.reserve((Resolution.area()) / 10); // Reserves space so reallocation is minimum at the start
+    this->Valid_Pixels.reserve((Resolution.area()) / 10); // Reserves space so reallocation is minimum at the start
 }
 
 void Frequency_Detector::Accept_Event_Batch(const dv::EventStore& Events) {
@@ -39,15 +39,15 @@ void Frequency_Detector::Accept_Event_Batch(const dv::EventStore& Events) {
         // Check if the measured frequency is the desired target within the tolerance. Update state variables
         double Measured_Frequency = 1e6 / static_cast<double>(Time_Displacement_us);
         if (std::abs(Measured_Frequency - this->Target_Frequency) <= this->Tolerance) {
-            // If the pixel reaches the required matches, consider it valid and save its index into Valid_Indexes 
+            // If the pixel reaches the required matches, consider it valid and save its index into Valid_Pixels 
             this->Pixel_States[Index].Num_Matches++;
             if (this->Pixel_States[Index].Num_Matches >= this->Required_Matches) {
                 this->Pixel_States[Index].Num_Matches = this->Required_Matches; // Prevents integer overflows
 
                 // Check to see if the pixel is already considered valid. Ensures that there are no duplicate indexes
                 if (this->Pixel_States[Index].Index_In_Valid == -1) {
-                    this->Pixel_States[Index].Index_In_Valid = (std::int32_t) this->Valid_Indexes.size();
-                    this->Valid_Indexes.push_back(Index);
+                    this->Pixel_States[Index].Index_In_Valid = (std::int32_t) this->Valid_Pixels.size();
+                    this->Valid_Pixels.emplace_back(Event.x(), Event.y());
                 }
             }
         } 
@@ -64,29 +64,27 @@ void Frequency_Detector::Accept_Event_Batch(const dv::EventStore& Events) {
 
 dv::EventStore Frequency_Detector::Generate_Events() {
     dv::EventStore Return_Store;
-    for (std::int32_t Valid_Index : this->Valid_Indexes) {
-        std::int16_t X = Valid_Index % this->Resolution.width;
-        std::int16_t Y = Valid_Index / this->Resolution.width;
-
-        Return_Store.emplace_back(0, X, Y, true);
-    }
+    for (cv::Point2i Valid_Pixel : this->Valid_Pixels)
+        Return_Store.emplace_back(0, Valid_Pixel.x, Valid_Pixel.y, true);
+    
     return Return_Store;
+}
+
+const std::vector<cv::Point2i>& Frequency_Detector::Get_Valid_Pixels() {
+    return this->Valid_Pixels;
 }
 
 void Frequency_Detector::Highlight_Pixels(cv::Mat& Frame, cv::Vec3b Color) const {
     // Draw all the valid pixels onto the frame given the color
-    for (std::int32_t Valid_Index : this->Valid_Indexes) {
-        std::int16_t X = Valid_Index % this->Resolution.width;
-        std::int16_t Y = Valid_Index / this->Resolution.width;
-        Frame.at<cv::Vec3b>(Y, X) = Color;
-    }
+    for (cv::Point2i Valid_Pixel : this->Valid_Pixels)
+        Frame.at<cv::Vec3b>(Valid_Pixel.y, Valid_Pixel.x) = Color;
 }
 
 void Frequency_Detector::Remove_Old_Pixels(std::int64_t Latest_Events_Timestamp) {
     // Check each valid pixel and check if its too old by utilizing the Expiry_Threshold. Perform pop and swap for O(1) vector deletion
     std::size_t Valid_Index = 0;
-    while(Valid_Index < this->Valid_Indexes.size()) {
-        std::uint32_t Pixel_Index = Valid_Indexes[Valid_Index];
+    while(Valid_Index < this->Valid_Pixels.size()) {
+        std::uint32_t Pixel_Index = this->Valid_Pixels[Valid_Index].y * this->Resolution.width + this->Valid_Pixels[Valid_Index].x;
         if (Latest_Events_Timestamp - this->Pixel_States[Pixel_Index].Latest_Timestamp > this->Expiry_Threshold) {
             this->Pixel_States[Pixel_Index] = PixelState();
             this->Swap_Pop(Valid_Index);
@@ -98,10 +96,11 @@ void Frequency_Detector::Remove_Old_Pixels(std::int64_t Latest_Events_Timestamp)
 
 void Frequency_Detector::Swap_Pop(std::int32_t Target_Index) {
     // If the target index to remove from valid vector is not the back, proceed to swap. This prevents segmentation faults
-    if (Target_Index != (std::int32_t) this->Valid_Indexes.size() - 1) {
-        this->Pixel_States[this->Valid_Indexes.back()].Index_In_Valid = Target_Index;
-        this->Valid_Indexes[Target_Index] = this->Valid_Indexes.back();
+    if (Target_Index != (std::int32_t) this->Valid_Pixels.size() - 1) {
+        std::uint32_t Pixel_Index = this->Valid_Pixels.back().y * this->Resolution.width + this->Valid_Pixels.back().x;
+        this->Pixel_States[Pixel_Index].Index_In_Valid = Target_Index;
+        this->Valid_Pixels[Target_Index] = this->Valid_Pixels.back();
     }
 
-    this->Valid_Indexes.pop_back();
+    this->Valid_Pixels.pop_back();
 }
