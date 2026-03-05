@@ -28,6 +28,7 @@ int main(void) {
     }
 
     // Initialize led frequency tracker
+    LED_Frequency_Tracker LED_300_Tracker(*resolution, 300.0, 30.0, 3, cv::Vec3b(255, 255, 255), 100, 40); 
     LED_Frequency_Tracker LED_400_Tracker(*resolution, 400.0, 40.0, 3, cv::Vec3b(255, 0, 255), 100, 40); 
     // Initalize visualizer
     dv::visualization::EventVisualizer visualizer(Camera->getEventResolution().value(), dv::visualization::colors::black,
@@ -36,7 +37,6 @@ int main(void) {
     cv::namedWindow("Detected LEDs", cv::WINDOW_NORMAL);
     cv::Mat detectionMask(*resolution, CV_8UC3, cv::Vec3b(0, 0, 0));
 
-    
     std::cout << "Starting live capture." << std::endl;
     while (Camera->isRunning()) {
         if (std::optional<dv::EventStore> Events = Camera->getNextEventBatch()) {
@@ -44,13 +44,14 @@ int main(void) {
             if (!Events->isEmpty()) {
                 // Process the events and generate a mask
                 detectionMask.setTo(cv::Vec3b(0, 0, 0));
+                LED_300_Tracker.Accept_Event_Batch(*Events, detectionMask);
                 LED_400_Tracker.Accept_Event_Batch(*Events, detectionMask);
                 cv::imshow("Events", visualizer.generateImage(*Events));
                 cv::imshow("Detected LEDs", detectionMask);
             }
             //std::this_thread::sleep_for(std::chrono::microseconds(Events->duration()));
         }
-        cv::waitKey(1);
+        cv::pollKey();
     }
 
     return 0;
