@@ -7,6 +7,7 @@
 #include <dv-processing/visualization/event_visualizer.hpp> // Used to generate images to display
 #include <opencv2/opencv.hpp>                               // Used to display the data
 #include "LED_Frequency_Tracker.hpp"
+#include "DBSCAN_Grid.hpp"
 
 #define CAMERA_RATE_MS 10      // How often the program will calculate and display it
 
@@ -28,8 +29,9 @@ int main(void) {
     }
 
     // Initialize led frequency tracker
-    LED_Frequency_Tracker LED_300_Tracker(*resolution, 300.0, 30.0, 3, cv::Vec3b(255, 255, 255), 100, 40); 
-    LED_Frequency_Tracker LED_400_Tracker(*resolution, 400.0, 40.0, 3, cv::Vec3b(255, 0, 255), 100, 40); 
+    //LED_Frequency_Tracker LED_300_Tracker(*resolution, 300.0, 30.0, 3, cv::Vec3b(255, 255, 255), 100, 40); 
+    //LED_Frequency_Tracker LED_400_Tracker(*resolution, 400.0, 40.0, 3, cv::Vec3b(255, 0, 255), 100, 40); 
+    Frequency_Detector Tracker_400(*resolution, 400, 40, 3);
     // Initalize visualizer
     dv::visualization::EventVisualizer visualizer(Camera->getEventResolution().value(), dv::visualization::colors::black,
         dv::visualization::colors::green, dv::visualization::colors::red);
@@ -44,8 +46,22 @@ int main(void) {
             if (!Events->isEmpty()) {
                 // Process the events and generate a mask
                 detectionMask.setTo(cv::Vec3b(0, 0, 0));
-                LED_300_Tracker.Accept_Event_Batch(*Events, detectionMask);
-                LED_400_Tracker.Accept_Event_Batch(*Events, detectionMask);
+                Tracker_400.Accept_Event_Batch(*Events);
+                Tracker_400.Highlight_Pixels(detectionMask, cv::Vec3b(255, 255, 255));
+
+                DBSCAN_Grid Test(Tracker_400.Get_Valid_Pixels(), *resolution, 20, 100);
+                auto [Cluster_Centers, Labels, Counts] = Test.Fit();
+                for (int i = 0; i < Cluster_Centers.size(); i++) {
+                    const int halfSize = 15;
+                    cv::Point2f pt(Cluster_Centers[i].x, Cluster_Centers[i].y);
+                    cv::Point2f topLeft  = pt - cv::Point2f(halfSize, halfSize);
+                    cv::Point2f botRight = pt + cv::Point2f(halfSize, halfSize);
+                    cv::rectangle(detectionMask,
+                        pt - cv::Point2f(halfSize, halfSize),
+                        pt + cv::Point2f(halfSize, halfSize),
+                        cv::Vec3b(255, 255, 255)); 
+                }
+
                 cv::imshow("Events", visualizer.generateImage(*Events));
                 cv::imshow("Detected LEDs", detectionMask);
             }
