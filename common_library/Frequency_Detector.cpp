@@ -33,8 +33,6 @@ void Frequency_Detector::Accept_Event_Batch(const dv::EventStore& Events) {
         int Index = Event.y() * this->Resolution.width + Event.x();
         std::int64_t Time_Displacement_us = Event.timestamp() - this->Pixel_States[Index].Latest_Timestamp; // Time period in microseconds
         this->Pixel_States[Index].Latest_Timestamp = Event.timestamp();
-        if (Time_Displacement_us < 1000) // Ignore impossibly short displacements to filter out hardware noise bursts
-            continue;
 
         // Check if the measured frequency is the desired target within the tolerance. Update state variables
         double Measured_Frequency = 1e6 / static_cast<double>(Time_Displacement_us);

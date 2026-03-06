@@ -31,8 +31,8 @@ int main(void) {
 
     // Initialize led frequency tracker
     //LED_Frequency_Tracker LED_300_Tracker(*resolution, 300.0, 30.0, 3, cv::Vec3b(255, 255, 255), 100, 40); 
-    Frequency_Detector Tracker_400(*resolution, 400, 40, 3);
-    PCA_Tracker Tracker_Vector(5000);
+    PCA_Tracker Axis(3);
+    Frequency_Detector Tracker_1000(*resolution, 1000, 100, 3);
     // Initalize visualizer
     dv::visualization::EventVisualizer visualizer(Camera->getEventResolution().value(), dv::visualization::colors::black,
         dv::visualization::colors::green, dv::visualization::colors::red);
@@ -47,13 +47,19 @@ int main(void) {
             if (!Events->isEmpty()) {
                 // Process the events and generate a mask
                 detectionMask.setTo(cv::Vec3b(0, 0, 0));
-                Tracker_400.Accept_Event_Batch(*Events);
-                Tracker_Vector.Accept_Event_Batch(Tracker_400.Generate_Events());
-                Tracker_Vector.Draw_PCA_Vectors(detectionMask, cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), 3);
-                Tracker_400.Highlight_Pixels(detectionMask, cv::Vec3b(255, 255, 255));
+                Tracker_1000.Accept_Event_Batch(*Events);
+                Tracker_1000.Highlight_Pixels(detectionMask, cv::Vec3b(255, 255, 255));
 
-                DBSCAN_Grid Test(Tracker_400.Get_Valid_Pixels(), *resolution, 20, 50);
+                DBSCAN_Grid Test(Tracker_1000.Get_Valid_Pixels(), *resolution, 20, 20);
                 auto [Cluster_Centers, Labels, Counts] = Test.Fit();
+
+                dv::EventStore temp;
+                for (cv::Point2i center : Cluster_Centers) {
+                    temp.emplace_back(0, center.x, center.y, true);
+                }
+                Axis.Accept_Event_Batch(temp);
+                Axis.Draw_PCA_Vectors(detectionMask, cv::Scalar(0, 255, 0), cv::Scalar(0, 0, 255), 1);
+
                 for (int i = 0; i < Cluster_Centers.size(); i++) {
                     const int halfSize = 15;
                     cv::Point2f pt(Cluster_Centers[i].x, Cluster_Centers[i].y);

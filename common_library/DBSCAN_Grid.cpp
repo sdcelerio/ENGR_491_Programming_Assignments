@@ -6,11 +6,11 @@
 #include "DBSCAN_Grid.hpp"
 
 
-static constexpr std::int32_t PIXEL_EMPTY = -1;
+static constexpr std::int32_t PIXEL_EMPTY = -4;
 
-static constexpr std::int32_t LABEL_UNVISITED = -2;   // not yet touched by Fit()
-static constexpr std::int32_t LABEL_IN_QUEUE = -3;   // confirmed
-static constexpr std::int32_t LABEL_NOISE = -4;   // confirmed
+static constexpr std::int32_t LABEL_UNVISITED = -3;   // not yet touched by Fit()
+static constexpr std::int32_t LABEL_IN_QUEUE = -2;   // confirmed
+static constexpr std::int32_t LABEL_NOISE = -1;   // confirmed
 
 /* Constructors */
 DBSCAN_Grid::DBSCAN_Grid(const dv::EventStore& Events, const cv::Size Resolution, int Epsilon, int Minimum_Points)
@@ -62,7 +62,7 @@ DBSCAN_Grid::ClusterResult DBSCAN_Grid::Fit() {
 
         // Get the neighbors of the current point and see if there is enough neighbors to be considered a core point of a cluster
         this->Range_Query(Points_Index, Neighbors);
-        if ((std::int32_t) Neighbors.size() < Minimum_Points) {
+        if ((std::int32_t) Neighbors.size() < this->Minimum_Points) {
             Result.Labels[Points_Index] = LABEL_NOISE;
             continue;
         }

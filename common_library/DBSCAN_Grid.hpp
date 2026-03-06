@@ -25,8 +25,20 @@ class DBSCAN_Grid  {
 
     /* Public Functions */
     public:
-        DBSCAN_Grid(const dv::EventStore& Events, const cv::Size Resolution, int Epsilon, int Minimum_Points);
+        /**
+         * Constructs a DBSCAN_Grid Object given a std::vector container of cv::Pointi, camera resolution, Epsilon or search radius, and the minimum number of points per cluster.
+         */
         DBSCAN_Grid(const std::vector<cv::Point2i>& Pixels, const cv::Size Resolution, int Epsilon, int Minimum_Points);
+
+        /**
+         * Constructs a DBSCAN_Grid Object given the dv::EventStore container, camera resolution, Epsilon or search radius, and the minimum number of points per cluster.
+         * Designed to be used with other dv::processing libraries.
+         */
+        DBSCAN_Grid(const dv::EventStore& Events, const cv::Size Resolution, int Epsilon, int Minimum_Points);
+
+        /**
+         * Begins the clustering algorithm after construction. Returns 3 vectors
+         */
         ClusterResult Fit();
 
     /* Private Helper Functions */
