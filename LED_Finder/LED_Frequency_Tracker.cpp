@@ -1,3 +1,4 @@
+#include <vector>
 #include <dv-processing/core/core.hpp>
 #include <dv-processing/cluster/mean_shift.hpp>
 #include <opencv2/opencv.hpp>

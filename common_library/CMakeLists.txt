@@ -2,6 +2,7 @@
 add_library(Common_Library 
     PCA_Tracker.cpp
     Frequency_Detector.cpp
+    DBSCAN_Grid.cpp
 )
 
 # The library needs OpenCV/DV too

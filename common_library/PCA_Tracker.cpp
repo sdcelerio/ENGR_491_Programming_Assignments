@@ -1,8 +1,9 @@
 #include <deque> 
 #include <cmath>        
 #include <cstddef>      
-#include <opencv2/opencv.hpp>  
 #include <dv-processing/core/core.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 #include "PCA_Tracker.hpp"
 
 PCA_Tracker::PCA_Tracker(std::size_t Max_Window_Size) : Max_Window_Size(Max_Window_Size) {}

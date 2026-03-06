@@ -3,7 +3,7 @@
 #include <deque>
 #include <cstddef>      
 #include <dv-processing/core/core.hpp> 
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 
 class PCA_Tracker {
     /* Private Data Members */

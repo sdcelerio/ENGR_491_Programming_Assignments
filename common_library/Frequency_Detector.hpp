@@ -3,7 +3,7 @@
 #include <vector>
 #include <cstdint>
 #include <dv-processing/core/core.hpp>
-#include <opencv2/opencv.hpp>
+#include <opencv2/core.hpp>
 
 class Frequency_Detector {
     /* Private defined structs */
@@ -22,9 +22,9 @@ class Frequency_Detector {
         int Required_Matches;
         std::int64_t Expiry_Threshold;
 
-        // 1D arrays flattened from 2D (width * height) for cache performance
-        std::vector<PixelState> Pixel_States;
-        std::vector<std::int32_t> Valid_Indexes;
+        // Vector arrays for storing the state of the events
+        std::vector<PixelState> Pixel_States;   // 1D array flattened from 2D (width * height) for cache performance
+        std::vector<cv::Point2i> Valid_Pixels; // Vector that stores the points of each valid pixel in cv::Point2i format
     
     /* Public functions */
     public:
@@ -38,7 +38,15 @@ class Frequency_Detector {
          */
         void Accept_Event_Batch(const dv::EventStore& Events);
 
+        /**
+         * Stores the Valid Pixels into an dv::EventStore format. Used to work with other dv::processing libraries.
+         */
         dv::EventStore Generate_Events();
+
+        /**
+         * Returns a constant reference to the valid pixels vector. Note to make sure the Frequency Detector remains in scope when using the reference.
+         */
+        const std::vector<cv::Point2i>& Get_Valid_Pixels();
 
         /**
          * Draws the detected pixels on to the given frame with the given color
