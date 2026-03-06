@@ -7,6 +7,7 @@
 #include <dv-processing/visualization/event_visualizer.hpp> // Used to generate images to display
 #include <opencv2/opencv.hpp>                               // Used to display the data
 #include "LED_Frequency_Tracker.hpp"
+#include "PCA_Tracker.hpp"
 #include "DBSCAN_Grid.hpp"
 
 #define CAMERA_RATE_MS 10      // How often the program will calculate and display it
@@ -30,8 +31,8 @@ int main(void) {
 
     // Initialize led frequency tracker
     //LED_Frequency_Tracker LED_300_Tracker(*resolution, 300.0, 30.0, 3, cv::Vec3b(255, 255, 255), 100, 40); 
-    //LED_Frequency_Tracker LED_400_Tracker(*resolution, 400.0, 40.0, 3, cv::Vec3b(255, 0, 255), 100, 40); 
     Frequency_Detector Tracker_400(*resolution, 400, 40, 3);
+    PCA_Tracker Tracker_Vector(5000);
     // Initalize visualizer
     dv::visualization::EventVisualizer visualizer(Camera->getEventResolution().value(), dv::visualization::colors::black,
         dv::visualization::colors::green, dv::visualization::colors::red);
@@ -47,9 +48,11 @@ int main(void) {
                 // Process the events and generate a mask
                 detectionMask.setTo(cv::Vec3b(0, 0, 0));
                 Tracker_400.Accept_Event_Batch(*Events);
+                Tracker_Vector.Accept_Event_Batch(Tracker_400.Generate_Events());
+                Tracker_Vector.Draw_PCA_Vectors(detectionMask, cv::Scalar(0, 0, 255), cv::Scalar(0, 255, 0), 3);
                 Tracker_400.Highlight_Pixels(detectionMask, cv::Vec3b(255, 255, 255));
 
-                DBSCAN_Grid Test(Tracker_400.Get_Valid_Pixels(), *resolution, 20, 100);
+                DBSCAN_Grid Test(Tracker_400.Get_Valid_Pixels(), *resolution, 20, 50);
                 auto [Cluster_Centers, Labels, Counts] = Test.Fit();
                 for (int i = 0; i < Cluster_Centers.size(); i++) {
                     const int halfSize = 15;

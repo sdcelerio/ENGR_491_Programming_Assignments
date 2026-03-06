@@ -1,12 +1,16 @@
+#include <vector>
+#include <cstdint>
+#include <algorithm>
+#include <dv-processing/core/core.hpp>
+#include <opencv2/core.hpp>
 #include "DBSCAN_Grid.hpp"
-#include <queue>
-#include <cmath>
+
 
 static constexpr std::int32_t PIXEL_EMPTY = -1;
 
-static constexpr std::int32_t LABEL_UNVISITED = -1;   // not yet touched by Fit()
-static constexpr std::int32_t LABEL_IN_QUEUE = -2;   // confirmed
-static constexpr std::int32_t LABEL_NOISE = -3;   // confirmed
+static constexpr std::int32_t LABEL_UNVISITED = -2;   // not yet touched by Fit()
+static constexpr std::int32_t LABEL_IN_QUEUE = -3;   // confirmed
+static constexpr std::int32_t LABEL_NOISE = -4;   // confirmed
 
 /* Constructors */
 DBSCAN_Grid::DBSCAN_Grid(const dv::EventStore& Events, const cv::Size Resolution, int Epsilon, int Minimum_Points)
@@ -51,7 +55,7 @@ DBSCAN_Grid::ClusterResult DBSCAN_Grid::Fit() {
     std::vector<std::int32_t> Seeds;     // Expand_Cluster frontier
     Neighbors.reserve(256);
     Seeds.reserve(256);
-    for (int Points_Index = 0; Points_Index < this->Points.size(); ++Points_Index) {
+    for (int Points_Index = 0; Points_Index < (int) this->Points.size(); ++Points_Index) {
         // If the point has already been visited then skip it
         if (Result.Labels[Points_Index] != LABEL_UNVISITED) 
             continue;
@@ -63,7 +67,7 @@ DBSCAN_Grid::ClusterResult DBSCAN_Grid::Fit() {
             continue;
         }
 
-        // Start a new cluster and attempt to expand from there by feeding unvisted points 
+        // Start a new cluster and attempt to expand from there by feeding unvisited points 
         Result.Labels[Points_Index] = Cluster_ID;
         Seeds.clear();
         for (const std::int32_t Neighbor : Neighbors) {
@@ -82,15 +86,15 @@ DBSCAN_Grid::ClusterResult DBSCAN_Grid::Fit() {
     Result.Counts.assign(Cluster_ID, 0);
     std::vector<std::int64_t> Sum_X(Cluster_ID, 0);
     std::vector<std::int64_t> Sum_Y(Cluster_ID, 0);
-    for (int Points_Index = 0; Points_Index < this->Points.size(); ++Points_Index) {
+    for (int Points_Index = 0; Points_Index < (int) this->Points.size(); ++Points_Index) {
         // Skip any points that were considered noise or other labels
-        const std::int32_t Cluster_ID = Result.Labels[Points_Index];
-        if (Cluster_ID < 0) 
+        const std::int32_t Cluster_Index = Result.Labels[Points_Index];
+        if (Cluster_Index < 0) 
             continue; 
 
-        Result.Counts[Cluster_ID]++;
-        Sum_X[Cluster_ID] += this->Points[Points_Index].x;
-        Sum_Y[Cluster_ID] += this->Points[Points_Index].y;
+        Result.Counts[Cluster_Index]++;
+        Sum_X[Cluster_Index] += this->Points[Points_Index].x;
+        Sum_Y[Cluster_Index] += this->Points[Points_Index].y;
     }
     for (int c = 0; c < Cluster_ID; ++c) {
         Result.Centers[c] = {
