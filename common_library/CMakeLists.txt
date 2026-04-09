@@ -2,6 +2,7 @@
 add_library(Common_Library 
     PCA_Tracker.cpp
     Frequency_Detector.cpp
+    Frequency_Estimator.cpp
     DBSCAN_Grid.cpp
     LED_Tracker.cpp
     Hot_Pixel_Detector.cpp
