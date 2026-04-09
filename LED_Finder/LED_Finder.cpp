@@ -84,7 +84,7 @@ int main(void) {
 
     // ── Stage 3: Per-LED frequency estimation ──
     std::vector<Frequency_Estimator> Freq_Estimators;
-    for (int i = 0; i < 2; ++i)
+    for (int i = 0; i < 3; ++i)
         Freq_Estimators.emplace_back(*resolution);
 
     // ── Visualization ──
@@ -114,9 +114,9 @@ int main(void) {
                     Tracker.Update(Hot_Pixels, Timestamp);
 
                 // Stage 3: Per-LED frequency estimation
-                double LED_Frequencies[2] = {0.0, 0.0};
+                double LED_Frequencies[3] = {0.0, 0.0, 0.0};
                 if (Tracker.Is_Initialized()) {
-                    for (int i = 0; i < 2; ++i) {
+                    for (int i = 0; i < 3; ++i) {
                         dv::EventStore Gate_Events = Tracker.Get_Events_In_Gate(i, *Events);
                         LED_Frequencies[i] = Freq_Estimators[i].Estimate(Gate_Events);
                     }
@@ -130,8 +130,8 @@ int main(void) {
                     Tracker.Draw(Tracking_Frame);
 
                     const auto& LEDs = Tracker.Get_LEDs();
-                    cv::Scalar Colors[] = {cv::Scalar(100, 100, 255), cv::Scalar(255, 100, 100)};
-                    for (int i = 0; i < 2; ++i) {
+                    cv::Scalar Colors[] = {cv::Scalar(100, 100, 255), cv::Scalar(255, 100, 100), cv::Scalar(100, 255, 100)};
+                    for (int i = 0; i < 3; ++i) {
                         if (LEDs[i].State_Flag == Kalman_LED_Tracker::Status::Lost)
                             continue;
 
