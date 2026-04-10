@@ -1,14 +1,12 @@
-#include <cmath>
-#include <deque>
+#include <deque> 
+#include <cmath>        
+#include <cstddef>      
 #include <dv-processing/core/core.hpp>
-#include <dv-processing/io/camera/discovery.hpp>            // Used for real-time readings
-#include <dv-processing/io/mono_camera_recording.hpp>       // Used for reading .aedat4 recordings
-#include <dv-processing/core/stream_slicer.hpp>             // Used to collect readings 
-#include <dv-processing/visualization/event_visualizer.hpp> // Used to generate images to display
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 #include "PCA_Tracker.hpp"
 
-
-PCA_Tracker::PCA_Tracker(size_t Max_Window_Size) : Max_Window_Size(Max_Window_Size) {}
+PCA_Tracker::PCA_Tracker(std::size_t Max_Window_Size) : Max_Window_Size(Max_Window_Size) {}
 
 void PCA_Tracker::Accept_Event_Batch(const dv::EventStore& Events) {
     for (const dv::Event& New_Event : Events) {
@@ -52,19 +50,19 @@ void PCA_Tracker::Accept_Event_Batch(const dv::EventStore& Events) {
     this->Calculate_PCA_Vectors();
 }
 
-void PCA_Tracker::Get_Means(double& Mean_X, double& Mean_Y) {
+void PCA_Tracker::Get_Means(double& Mean_X, double& Mean_Y) const {
     // Write stored means into given return values
     Mean_X = this->Mean_X;
     Mean_Y = this->Mean_Y;
 }
 
-void PCA_Tracker::Get_Eigenvalues(double& Eigenvalue_1, double& Eigenvalue_2) {
+void PCA_Tracker::Get_Eigenvalues(double& Eigenvalue_1, double& Eigenvalue_2) const {
     // Write stored eigenvalues into given return values
     Eigenvalue_1 = this->Eigenvalues[0];
     Eigenvalue_2 = this->Eigenvalues[1];
 }
 
-void PCA_Tracker::Get_Eigenvectors(double (*Eigenvectors)[2]) {
+void PCA_Tracker::Get_Eigenvectors(double (*Eigenvectors)[2]) const {
     // Write stored eigenvector components into the given 2D array
     Eigenvectors[0][0] = this->Eigenvectors[0][0];
     Eigenvectors[0][1] = this->Eigenvectors[0][1];
@@ -72,7 +70,7 @@ void PCA_Tracker::Get_Eigenvectors(double (*Eigenvectors)[2]) {
     Eigenvectors[1][1] = this->Eigenvectors[1][1];
 }
 
-void PCA_Tracker::Draw_PCA_Vectors(cv::Mat& Frame, cv::Scalar Color_1, cv::Scalar Color_2, int Thickness) {
+void PCA_Tracker::Draw_PCA_Vectors(cv::Mat& Frame, cv::Scalar Color_1, cv::Scalar Color_2, int Thickness) const {
     // Create start and end points of the vector
     cv::Point Center_Point(static_cast<int>(this->Mean_X), static_cast<int>(this->Mean_Y));
     cv::Point Vector_End_1(

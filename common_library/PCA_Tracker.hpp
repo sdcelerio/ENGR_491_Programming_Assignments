@@ -1,6 +1,9 @@
+#pragma once
+
 #include <deque>
-#include <dv-processing/core/core.hpp>
-#include <opencv4/opencv2/highgui.hpp>
+#include <cstddef>      
+#include <dv-processing/core/core.hpp> 
+#include <opencv2/core.hpp>
 
 class PCA_Tracker {
     /* Private Data Members */
@@ -21,12 +24,12 @@ class PCA_Tracker {
 
     /* Public functions */
     public:
-        PCA_Tracker(size_t Max_Window_Size);
+        PCA_Tracker(std::size_t Max_Window_Size);
         void Accept_Event_Batch(const dv::EventStore& Events);
-        void Get_Means(double& Mean_X, double& Mean_Y);
-        void Get_Eigenvalues(double& Eigenvalue_1, double& Eigenvalue_2);
-        void Get_Eigenvectors(double (*Eigenvectors)[2]);
-        void Draw_PCA_Vectors(cv::Mat& Frame, cv::Scalar Color_1, cv::Scalar Color_2, int Thickness);
+        void Get_Means(double& Mean_X, double& Mean_Y) const;
+        void Get_Eigenvalues(double& Eigenvalue_1, double& Eigenvalue_2) const;
+        void Get_Eigenvectors(double (*Eigenvectors)[2]) const;
+        void Draw_PCA_Vectors(cv::Mat& Frame, cv::Scalar Color_1, cv::Scalar Color_2, int Thickness) const ;
 
     /* Private helper functions */
     private:
