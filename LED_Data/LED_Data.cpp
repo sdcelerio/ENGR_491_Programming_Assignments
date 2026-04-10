@@ -80,7 +80,7 @@ int main(void) {
 
     // ── Stage 2: Kalman LED Tracker ──
     // Parameters:                  res,  N, proc_noise, meas_noise, gate_σ, min_gate, max_gate, min_px, lost, grace, ratio, tol
-    Kalman_LED_Tracker Tracker(*resolution, 3, 500000.0,  3.0,        3.0,    20,       120,      30,     8,    5,     0.0,   0.3);
+    Kalman_LED_Tracker Tracker(*resolution, 3, 500000.0,  3.0,        3.0,    20,       120,      15,     8,    5,     0.0,   0.3);
 
     // ── Stage 3: Per-LED frequency estimation ──
     std::vector<Frequency_Estimator> Freq_Estimators;
