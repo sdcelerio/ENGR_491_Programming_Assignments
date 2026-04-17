@@ -33,11 +33,18 @@ double Frequency_Estimator::Estimate(const dv::EventStore& Events) {
         if (Prev == 0) 
             continue;
 
-        // Calculate the frequency and ignore frequencies below 50 and above 5000
+        // Guard against zero/negative dt (timestamp jitter or duplicate events)
         std::int64_t dt_us = Event.timestamp() - Prev;
+        if (dt_us <= 0)
+            continue;
+
+        // Clamp to valid frequency range: 100Hz–2000Hz
+        // 100Hz → dt = 10000µs, 2000Hz → dt = 500µs
+        if (dt_us < 500 || dt_us > 10000)
+            continue;
+
         double freq = 1e6 / static_cast<double>(dt_us);
-        if (freq >= 50.0 && freq <= 5000.0)
-            Frequencies.push_back(freq);
+        Frequencies.push_back(freq);
     }
 
     // If there are enough estimated frequencies get the median

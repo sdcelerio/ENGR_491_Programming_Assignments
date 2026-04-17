@@ -8,55 +8,74 @@
 #include <opencv2/opencv.hpp>
 #include "Hot_Pixel_Detector.hpp"
 #include "Kalman_LED_Tracker.hpp"
+#include "Frequency_Estimator.hpp"
 
-/**
- * Measures the median frequency from raw events inside a gate.
- * Tracks the last positive-polarity timestamp per pixel.
- * Returns 0 if not enough measurements.
- */
-struct Frequency_Estimator {
-    int Width;
-    std::vector<std::int64_t> Last_Pos_Timestamp;  // Per-pixel last positive event timestamp
-    double Measured_Frequency = 0.0;
+// ─── Symbol Decoder ───────────────────────────────────────────────────────────
+struct Symbol_Decoder {
+    enum class State { Idle, Receiving };
 
-    Frequency_Estimator(cv::Size Resolution) 
-        : Width(Resolution.width), 
-          Last_Pos_Timestamp(Resolution.width * Resolution.height, 0) {}
+    State       Current_State  = State::Idle;
+    uint8_t     Dibit_Buffer   = 0;      // accumulates 4 dibits per character
+    uint8_t     Dibit_Count    = 0;      // how many dibits received this char
+    bool        Expect_Data    = false;  // true after a SEND, next symbol is data
+    std::string Message        = "";     // fully decoded message so far
 
-    double Estimate(const dv::EventStore& Events) {
-        if (Events.isEmpty()) return this->Measured_Frequency;
+    // Call this every frame with the classified symbol for each LED
+    // Returns true when a full message has been decoded (idle after data)
+    bool Push_Symbol(const std::string& symbol) {
+        if (symbol == "SEND") {
+            Current_State = State::Receiving;
+            Expect_Data   = true;
+            return false;
+        }
 
-        std::vector<double> Frequencies;
-        Frequencies.reserve(Events.size() / 2);
+        if (symbol == "IDLE") {
+            if (Current_State == State::Receiving && !Message.empty()) {
+                // Flush any partial character
+                Current_State = State::Idle;
+                Dibit_Buffer  = 0;
+                Dibit_Count   = 0;
+                Expect_Data   = false;
+                return true;  // message complete
+            }
+            return false;
+        }
 
-        for (const dv::Event& Event : Events) {
-            // Only measure on positive polarity (OFF→ON = rising edge of blink)
-            if (!Event.polarity()) continue;
+        // Data symbol — only valid after a SEND
+        if (Current_State == State::Receiving && Expect_Data) {
+            Expect_Data = false;
 
-            int Index = Event.y() * this->Width + Event.x();
-            std::int64_t Prev = this->Last_Pos_Timestamp[Index];
-            this->Last_Pos_Timestamp[Index] = Event.timestamp();
+            uint8_t dibit = 0;
+            if      (symbol == "00") dibit = 0;
+            else if (symbol == "01") dibit = 1;
+            else if (symbol == "10") dibit = 2;
+            else if (symbol == "11") dibit = 3;
+            else return false;  // unknown symbol, skip
 
-            // Skip if no previous timestamp for this pixel
-            if (Prev == 0) continue;
+            // LSB first — shift in from the top, we'll reverse at char boundary
+            Dibit_Buffer |= (dibit << (Dibit_Count * 2));
+            Dibit_Count++;
 
-            std::int64_t dt_us = Event.timestamp() - Prev;
-            // Filter out unreasonable intervals (< 100 Hz or > 10000 Hz)
-            if (dt_us > 100 && dt_us < 10000000) {
-                double freq = 1e6 / static_cast<double>(dt_us);
-                if (freq >= 50.0 && freq <= 5000.0)
-                    Frequencies.push_back(freq);
+            if (Dibit_Count == 4) {
+                // Full character received
+                Message += static_cast<char>(Dibit_Buffer);
+                Dibit_Buffer = 0;
+                Dibit_Count  = 0;
             }
         }
 
-        if (Frequencies.size() >= 5) {
-            // Median frequency — robust to outliers
-            std::sort(Frequencies.begin(), Frequencies.end());
-            this->Measured_Frequency = Frequencies[Frequencies.size() / 2];
-        }
-
-        return this->Measured_Frequency;
+        return false;
     }
+
+    void Reset() {
+        Current_State = State::Idle;
+        Dibit_Buffer  = 0;
+        Dibit_Count   = 0;
+        Expect_Data   = false;
+        Message       = "";
+    }
+
+    const std::string& Get_Message() const { return Message; }
 };
 
 int main(void) {
@@ -86,6 +105,7 @@ int main(void) {
     std::vector<Frequency_Estimator> Freq_Estimators;
     for (int i = 0; i < 3; ++i)
         Freq_Estimators.emplace_back(*resolution);
+    std::vector<Symbol_Decoder> Decoders(3);
 
     // ── Visualization ──
     dv::visualization::EventVisualizer Visualizer(*resolution,
@@ -138,29 +158,36 @@ int main(void) {
                         double px = LEDs[i].State.at<double>(0);
                         double py = LEDs[i].State.at<double>(1);
 
-                        // Display measured frequency
-                        std::string Freq_Label;
-                        if (LED_Frequencies[i] > 1.0) {
+                        double Curr_Frequency = LED_Frequencies[i];
+                        std::string symbol_name = "";
+                        std::string Freq_Label  = "measuring...";
+
+                        if (Curr_Frequency > 1.0) {
                             char buf[64];
-                            if (LED_Frequencies[i] > 350 && LED_Frequencies[i] < 450)
-                                std::snprintf(buf, sizeof(buf), "%.0f Hz IDLE", LED_Frequencies[i]);
-                            else if (LED_Frequencies[i] > 950 && LED_Frequencies[i] < 1050)
-                                std::snprintf(buf, sizeof(buf), "%.0f Hz SEND", LED_Frequencies[i]);
-                            else if (LED_Frequencies[i] > 1150 && LED_Frequencies[i] < 1250)
-                                std::snprintf(buf, sizeof(buf), "%.0f Hz STOP", LED_Frequencies[i]);
-                            else if (LED_Frequencies[i] > 450 && LED_Frequencies[i] < 550)
-                                std::snprintf(buf, sizeof(buf), "%.0f Hz 00", LED_Frequencies[i]);
-                            else if (LED_Frequencies[i] > 550 && LED_Frequencies[i] < 650)
-                                std::snprintf(buf, sizeof(buf), "%.0f Hz 01", LED_Frequencies[i]);
-                            else if (LED_Frequencies[i] > 650 && LED_Frequencies[i] < 750)
-                                std::snprintf(buf, sizeof(buf), "%.0f Hz 10", LED_Frequencies[i]);
-                            else if (LED_Frequencies[i] > 750 && LED_Frequencies[i] < 850)
-                                std::snprintf(buf, sizeof(buf), "%.0f Hz 11", LED_Frequencies[i]);
-                            else
-                                std::snprintf(buf, sizeof(buf), "%.0f Hz (ERROR)", LED_Frequencies[i]);
+
+                            if      (Curr_Frequency > 1100  && Curr_Frequency < 1300)  symbol_name = "IDLE";
+                            else if (Curr_Frequency > 250  && Curr_Frequency < 350)  symbol_name = "00";
+                            else if (Curr_Frequency > 350  && Curr_Frequency < 450)  symbol_name = "01";
+                            else if (Curr_Frequency > 450  && Curr_Frequency < 550)  symbol_name = "10";
+                            else if (Curr_Frequency > 550  && Curr_Frequency < 650) symbol_name = "11";
+                            else if (Curr_Frequency > 800 && Curr_Frequency < 1000) symbol_name = "SEND";
+                            else                                                       symbol_name = "ERROR";
+
+                            // Feed into decoder
+                            if (symbol_name != "ERROR") {
+                                bool complete = Decoders[i].Push_Symbol(symbol_name);
+                                if (complete) {
+                                    std::cerr << "[LED " << i << "] Decoded: \""
+                                            << Decoders[i].Get_Message() << "\"" << std::endl;
+                                    Decoders[i].Reset();
+                                }
+                            }
+
+                            std::snprintf(buf, sizeof(buf), "%s",
+                                        //Curr_Frequency,
+                                        //symbol_name.c_str(),
+                                        Decoders[i].Get_Message().c_str());
                             Freq_Label = buf;
-                        } else {
-                            Freq_Label = "measuring...";
                         }
 
                         cv::putText(Tracking_Frame, Freq_Label,
