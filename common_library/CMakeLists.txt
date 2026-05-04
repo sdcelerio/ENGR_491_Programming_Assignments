@@ -2,11 +2,11 @@
 add_library(Common_Library 
     PCA_Tracker.cpp
     Frequency_Detector.cpp
-    Frequency_Estimator.cpp
     DBSCAN_Grid.cpp
     LED_Tracker.cpp
     Hot_Pixel_Detector.cpp
     Kalman_LED_Tracker.cpp
+    Multi_Car_Tracker.cpp
 )
 
 # The library needs OpenCV/DV too

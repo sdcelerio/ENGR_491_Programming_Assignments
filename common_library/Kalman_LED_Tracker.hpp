@@ -63,12 +63,12 @@ class Kalman_LED_Tracker {
         bool Is_Initialized() const;
         void Reset();
         void Draw(cv::Mat& Frame, cv::Scalar Gate_Color = cv::Scalar(0, 255, 0), cv::Scalar Velocity_Color = cv::Scalar(255, 0, 0)) const;
+        cv::Rect Get_Gate_Rect(int LED_Index) const;
 
     private:
         bool Initialize(const std::vector<cv::Point2i>& Hot_Pixels);
         void Track(const std::vector<cv::Point2i>& Hot_Pixels, double dt);
         void Build_Prediction_Matrices(double dt, cv::Mat& F, cv::Mat& Q) const;
-        cv::Rect Get_Gate_Rect(int LED_Index) const;
 
         struct PCA_Result {
             cv::Point2d Mean;

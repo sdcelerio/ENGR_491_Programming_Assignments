@@ -182,28 +182,28 @@ bool Kalman_LED_Tracker::Initialize(const std::vector<cv::Point2i>& Hot_Pixels) 
     }
 
     // Check 1: Reject if any cluster is extremely elongated (likely a split blob)
-    for (int c = 0; c < N; ++c) {
-        if (Cluster_Elongations[c] > 10.0) {
-            std::cerr << "  INIT REJECTED: cluster " << c << " too elongated (" << Cluster_Elongations[c] << ")" << std::endl;
-            return false;
-        }
-    }
+    // for (int c = 0; c < N; ++c) {
+    //     if (Cluster_Elongations[c] > 1.0) {
+    //         std::cerr << "  INIT REJECTED: cluster " << c << " too elongated (" << Cluster_Elongations[c] << ")" << std::endl;
+    //         return false;
+    //     }
+    // }
 
     // Check 2: Reject if cluster sizes are too different (one is >5x larger than another)
     double max_trace = *std::max_element(Cluster_Traces.begin(), Cluster_Traces.end());
     double min_trace = *std::min_element(Cluster_Traces.begin(), Cluster_Traces.end());
-    if (min_trace > 0 && max_trace / min_trace > 5.0) {
-        std::cerr << "  INIT REJECTED: cluster sizes too different (ratio=" << max_trace / min_trace << ")" << std::endl;
-        return false;
-    }
+    // if (min_trace > 0 && max_trace / min_trace > 5.0) {
+    //     std::cerr << "  INIT REJECTED: cluster sizes too different (ratio=" << max_trace / min_trace << ")" << std::endl;
+    //     return false;
+    // }
 
     // Check 3: Reject if cluster point counts are too imbalanced (one has >5x more points)
     int max_count = *std::max_element(Cluster_Counts_Init.begin(), Cluster_Counts_Init.end());
     int min_count = *std::min_element(Cluster_Counts_Init.begin(), Cluster_Counts_Init.end());
-    if (min_count > 0 && max_count / min_count > 5) {
-        std::cerr << "  INIT REJECTED: point counts too imbalanced (" << max_count << " vs " << min_count << ")" << std::endl;
-        return false;
-    }
+    // if (min_count > 0 && max_count / min_count > 5) {
+    //     std::cerr << "  INIT REJECTED: point counts too imbalanced (" << max_count << " vs " << min_count << ")" << std::endl;
+    //     return false;
+    // }
 
     // ── Arrangement validation (3+ LEDs) ──
     if (this->Target_Cluster_Count >= 3) {
@@ -356,6 +356,14 @@ void Kalman_LED_Tracker::Track(const std::vector<cv::Point2i>& Hot_Pixels, doubl
         // Covariance floor on position — prevents gate collapse
         LED.Covariance.at<double>(0, 0) = std::max(LED.Covariance.at<double>(0, 0), 25.0);
         LED.Covariance.at<double>(1, 1) = std::max(LED.Covariance.at<double>(1, 1), 25.0);
+        // Dampen acceleration when velocity is low — prevents drift when stationary
+        double vx = LED.State.at<double>(2);
+        double vy = LED.State.at<double>(3);
+        double speed = std::sqrt(vx * vx + vy * vy);
+        if (speed < 20.0) {  // pixels/sec — essentially stationary
+            LED.State.at<double>(4) *= 0.5;  // decay ax
+            LED.State.at<double>(5) *= 0.5;  // decay ay
+        }
     }
 
     if (Lost_Count > 0) {
